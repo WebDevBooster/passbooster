@@ -33,6 +33,7 @@
 	},
 	"dependencies": {
 		"argon2id": "^1.0.1",
+		"hash-wasm": "^4.12.0",
 		"tldts": "^7.0.12"
 	}
 }

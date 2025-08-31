@@ -1,34 +1,46 @@
+// src/lib/derive.js
+import { argon2id } from 'hash-wasm';
 import { formatPassword } from './format.js';
 
-// Use a non-printable delimiter so labels can safely include ":" etc.
-export const SALT_DELIM = '\u001F'; // Unit Separator (US)
+// Non-printable delimiter so labels can safely include ":" etc.
+export const SALT_DELIM = '\u001F'; // Unit Separator
 
 /**
- * TEMP KDF: PBKDF2-SHA256 (placeholder).
- * Next step: swap to Argon2id with inlined WASM.
+ * Derive + format using Argon2id (hash-wasm embeds WASM; no Vite plugins needed).
+ * opts:
+ *  - length (chars)
+ *  - symbols (string)
+ *  - passes  -> argon2 "iterations" (time cost)
+ *  - memoryMiB -> argon2 memory size in MiB (converted to KiB)
+ *  - parallelism
+ *  - hashBytes -> output K length in bytes before formatting
  */
-export async function derivePassword(master, saltPieces, { length = 20, symbols = '@#%+=?^' } = {}) {
-    const encoder = new TextEncoder();
+export async function derivePassword(
+    master,
+    saltPieces,
+    {
+        length = 20,
+        symbols = '@#%+=?^',
+        passes = 3,
+        memoryMiB = 128,
+        parallelism = 1,
+        hashBytes = 32
+    } = {}
+) {
+    const enc = new TextEncoder();
+    const password = enc.encode(master);
+    const salt = enc.encode(Array.isArray(saltPieces) ? saltPieces.join(SALT_DELIM) : saltPieces);
 
-    const salt = typeof saltPieces === 'string'
-        ? saltPieces
-        : saltPieces.join(SALT_DELIM);
+    // hash-wasm expects memorySize in KiB and uses "iterations" for time cost
+    const K = await argon2id({
+        password,
+        salt,
+        parallelism,
+        iterations: passes,
+        memorySize: Math.max(8, memoryMiB | 0) * 1024, // KiB
+        hashLength: hashBytes,
+        outputType: 'binary' // Uint8Array
+    });
 
-    const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(master),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits']
-    );
-
-    const iterations = 200000;
-    const derivedBits = await crypto.subtle.deriveBits(
-        { name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations },
-        keyMaterial,
-        32 * 8
-    );
-
-    const K = new Uint8Array(derivedBits);
     return formatPassword(K, length, symbols);
 }
