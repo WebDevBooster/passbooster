@@ -1,11 +1,19 @@
 import { formatPassword } from './format.js';
 
+// Use a non-printable delimiter so labels can safely include ":" etc.
+export const SALT_DELIM = '\u001F'; // Unit Separator (US)
+
 /**
- * TEMP KDF: PBKDF2-SHA256 (WebCrypto) so the page works now.
- * Next step: swap to Argon2id (inlined WASM) with memory-hard params.
+ * TEMP KDF: PBKDF2-SHA256 (placeholder).
+ * Next step: swap to Argon2id with inlined WASM.
  */
-export async function derivePassword(master, salt, { length = 20, symbols = '@#%+=?^' } = {}) {
+export async function derivePassword(master, saltPieces, { length = 20, symbols = '@#%+=?^' } = {}) {
     const encoder = new TextEncoder();
+
+    const salt = typeof saltPieces === 'string'
+        ? saltPieces
+        : saltPieces.join(SALT_DELIM);
+
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
         encoder.encode(master),
@@ -14,19 +22,13 @@ export async function derivePassword(master, salt, { length = 20, symbols = '@#%
         ['deriveBits']
     );
 
-    // Pick a work factor that feels ~quick on dev machines; we’ll auto-tune later.
-    const iterations = 200000; // adjust if too slow/fast on your device
+    const iterations = 200000;
     const derivedBits = await crypto.subtle.deriveBits(
-        {
-            name: 'PBKDF2',
-            hash: 'SHA-256',
-            salt: encoder.encode(salt),
-            iterations
-        },
+        { name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations },
         keyMaterial,
         32 * 8
     );
 
-    const K = new Uint8Array(derivedBits); // 32 bytes
+    const K = new Uint8Array(derivedBits);
     return formatPassword(K, length, symbols);
 }
