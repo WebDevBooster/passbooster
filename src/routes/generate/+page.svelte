@@ -1,8 +1,8 @@
 <script>
-    import { onMount } from 'svelte';
     import { derivePassword } from '$lib/derive.js';
     import { normalizeDomain } from '$lib/domain.js';
     import { policyCheck } from '$lib/format.js';
+    import { normalizeLabel, normalizeVersion } from '$lib/normalize.js';
 
     let domainInput = '';
     let label = '';
@@ -10,6 +10,9 @@
     let master = '';
 
     let normalized = '';
+    let normalizedLabel = '';
+    let normalizedVersion = 'v1';
+
     let output = '';
     let showing = false;
     let copyMsg = '';
@@ -20,20 +23,25 @@
 
     async function doNormalize() {
         normalized = await normalizeDomain(domainInput);
+        previewNormalization();
+    }
+
+    function previewNormalization() {
+        normalizedLabel = normalizeLabel(label /* { caseSensitive: false } default */);
+        normalizedVersion = normalizeVersion(version);
     }
 
     async function onDerive() {
         copyMsg = '';
-        if (!master.trim()) {
-            output = '';
-            return;
-        }
+        if (!master.trim()) { output = ''; return; }
         const dom = normalized || (await normalizeDomain(domainInput));
-        if (!dom) {
-            output = '';
-            return;
-        }
-        const salt = `${dom}:${label || 'default'}:${version || 'v1'}`;
+        if (!dom) { output = ''; return; }
+
+        // Ensure we use canonicalized pieces
+        const nLabel = normalizedLabel || normalizeLabel(label);
+        const nVersion = normalizedVersion || normalizeVersion(version);
+
+        const salt = `${dom}:${nLabel || 'default'}:${nVersion}`;
         output = await derivePassword(master, salt, { length: OUTPUT_LENGTH, symbols: SYMBOL_SET });
         policy = policyCheck(output, { length: OUTPUT_LENGTH, symbols: SYMBOL_SET });
     }
@@ -42,18 +50,13 @@
         if (!output) return;
         try {
             await navigator.clipboard.writeText(output);
-            copyMsg = 'Copied (auto-clear suggested)';
-            // optional: clear UI password after N seconds (clipboard cannot be cleared programmatically)
-            setTimeout(() => { copyMsg = ''; }, 4000);
+            copyMsg = 'Copied';
+            setTimeout(() => (copyMsg = ''), 4000);
         } catch {
             copyMsg = 'Copy failed (clipboard blocked?)';
-            setTimeout(() => { copyMsg = ''; }, 4000);
+            setTimeout(() => (copyMsg = ''), 4000);
         }
     }
-
-    onMount(() => {
-        // convenience: if user pastes a URL, normalize on blur
-    });
 </script>
 
 <svelte:head>
@@ -65,31 +68,46 @@
     <div class="card form">
         <label>
             <span>Domain or URL</span>
-            <input placeholder="example.com or https://sub.example.co.uk/login"
-                   bind:value={domainInput}
-                   on:blur={doNormalize} />
+            <input
+                    placeholder="example.com or https://sub.example.co.uk/login"
+                    bind:value={domainInput}
+                    on:blur={doNormalize} />
         </label>
 
         <div class="row">
             <label class="grow">
                 <span>Account label (optional)</span>
-                <input placeholder="personal, work, admin…" bind:value={label} />
+                <input
+                        placeholder="personal, work, admin…"
+                        bind:value={label}
+                        on:input={previewNormalization} />
+                {#if label}
+                    <div class="hint muted small">
+                        Using label: <code>{normalizedLabel || 'default'}</code>
+                    </div>
+                {/if}
             </label>
+
             <label class="ver">
                 <span>Version</span>
-                <input class="center" placeholder="v1" bind:value={version} />
+                <input class="center" placeholder="v1" bind:value={version} on:input={previewNormalization} />
+                <div class="hint muted small">Will use: <code>{normalizedVersion}</code></div>
             </label>
         </div>
 
         <label>
             <span>Master secret</span>
             <div class="password">
-                <input type={showing ? 'text' : 'password'}
-                       placeholder="enter your memorized passphrase"
-                       bind:value={master} />
-                <button class="btn slim" type="button" on:click={() => showing = !showing}>
+                <input
+                        type={showing ? 'text' : 'password'}
+                        placeholder="enter your memorized passphrase"
+                        bind:value={master} />
+                <button class="btn slim" type="button" on:click={() => (showing = !showing)}>
                     {showing ? 'Hide' : 'Show'}
                 </button>
+            </div>
+            <div class="hint muted small">
+                Tip: the label is <em>canonicalized</em> by default (case-insensitive). We’ll add a case-sensitive option in Settings.
             </div>
         </label>
 
@@ -99,7 +117,7 @@
                 Derive
             </button>
             {#if normalized}
-                <span class="muted">Normalized: <code>{normalized}</code></span>
+                <span class="muted">Normalized domain: <code>{normalized}</code></span>
             {/if}
         </div>
     </div>
@@ -108,7 +126,7 @@
         <div class="row">
             <label class="grow">
                 <span>Password</span>
-                <input class="mono" readonly value={output} placeholder="(derive to see output)"/>
+                <input class="mono" readonly value={output} placeholder="(derive to see output)" />
             </label>
             <div class="col">
                 <button class="btn" type="button" on:click={copyOut} disabled={!output}>Copy</button>
