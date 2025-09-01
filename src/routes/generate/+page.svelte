@@ -1,5 +1,5 @@
 <script>
-    import { derivePassword, SALT_DELIM } from '$lib/derive.js';
+    import { derivePassword } from '$lib/derive.js';
     import { normalizeDomain } from '$lib/domain.js';
     import { policyCheck } from '$lib/format.js';
     import {
