@@ -9,6 +9,7 @@
     } from '$lib/normalize.js';
     import { settings } from '$lib/stores.js';
     $: s = $settings;
+    $: kdfProfile = `argon2id m${s.memoryMiB} t${s.passes} p${s.parallelism} h${s.hashBytes}`;
 
     let domainInput = '';
     let label = '';
@@ -89,6 +90,9 @@
 
 <main class="container py-4">
     <h1 class="h3 mb-3">Generate</h1>
+    <div class="text-muted mb-2">
+        KDF profile: <span class="badge text-bg-light">{kdfProfile}</span>
+    </div>
 
     <!-- Form card -->
     <div class="card shadow-sm mb-3">
