@@ -4,63 +4,90 @@
     import { policyCheck } from '$lib/format.js';
     import {
         normalizeLabelDetailed,
-        normalizeVersion,
-        defaultLabelSteps
+        normalizeVersion
     } from '$lib/normalize.js';
-    import { settings } from '$lib/stores.js';
-    $: s = $settings;
-    $: kdfProfile = `argon2id m${s.memoryMiB} t${s.passes} p${s.parallelism} h${s.hashBytes}`;
 
+    import { settings } from '$lib/stores.js';
+    import { session } from '$lib/session.js';
+    import { onMount } from 'svelte';
+
+    // reactive stores
+    $: s = $settings;
+    $: sess = $session;
+
+    // read master from in-memory session
+    const masterFromSession = () => (sess?.master ?? '');
+
+    // form state
     let domainInput = '';
     let label = '';
     let version = 'v1';
-    let master = '';
 
+    // normalized previews
     let normalizedDomain = '';
     let normalizedLabel = '';
     let normalizedVersion = 'v1';
 
+    // label normalization change list + local step toggles
     let labelChanges = [];
-    let steps = { ...defaultLabelSteps }; // toggled by per-change Undo
+    let steps = null; // local copy of s.labelSteps; stays null until first use
 
+    // output + policy
     let output = '';
-    let showing = false;
     let copyMsg = '';
     let policy = { ok: false, length: false, digit: false, upper: false, symbol: false };
 
-    let normalizeTimer;
-    function onDomainInput() {
-        clearTimeout(normalizeTimer);
-        // light debounce so we don't re-run normalization on every keystroke
-        normalizeTimer = setTimeout(doNormalizeDomain, 200);
+    // KDF profile string (for user awareness)
+    $: kdfProfile = `argon2id m${s.memoryMiB} t${s.passes} p${s.parallelism} h${s.hashBytes}`;
+
+    onMount(() => {
+        previewNormalization();
+    });
+
+    function currentSteps() {
+        // lazily copy global label steps so per-change Undo doesn't mutate settings
+        if (!steps) steps = { ...s.labelSteps };
+        return steps;
     }
 
     async function doNormalizeDomain() {
         normalizedDomain = await normalizeDomain(domainInput);
-        previewNormalization();
+    }
+
+    let normalizeTimer;
+    function onDomainInput() {
+        clearTimeout(normalizeTimer);
+        normalizeTimer = setTimeout(doNormalizeDomain, 200);
     }
 
     function previewNormalization() {
-        const { output, changes } = normalizeLabelDetailed(label, steps);
+        const { output, changes } = normalizeLabelDetailed(label, currentSteps());
         normalizedLabel = output;
         normalizedVersion = normalizeVersion(version);
         labelChanges = changes;
     }
 
     function undoChange(key) {
-        steps = { ...steps, [key]: false };
+        steps = { ...currentSteps(), [key]: false };
+        previewNormalization();
+    }
+
+    function resetLabelNormalization() {
+        steps = { ...s.labelSteps };
         previewNormalization();
     }
 
     async function onDerive() {
         copyMsg = '';
+        const master = masterFromSession();
         if (!master.trim()) { output = ''; return; }
+
         const dom = normalizedDomain || (await normalizeDomain(domainInput));
         if (!dom) { output = ''; return; }
 
-        // Build salt pieces; delimiter is a safe control char.
         const pieces = [dom, normalizedLabel || 'default', normalizedVersion || 'v1'];
-        output = await derivePassword(master, pieces, {
+
+        const K = await derivePassword(master, pieces, {
             length: s.length,
             symbols: s.symbols,
             passes: s.passes,
@@ -68,6 +95,8 @@
             parallelism: s.parallelism,
             hashBytes: s.hashBytes
         });
+
+        output = K; // derivePassword already returns the formatted string
         policy = policyCheck(output, { length: s.length, symbols: s.symbols });
     }
 
@@ -76,7 +105,7 @@
         try {
             await navigator.clipboard.writeText(output);
             copyMsg = 'Copied';
-            setTimeout(() => (copyMsg = ''), 4000);
+            setTimeout(() => (copyMsg = ''), 3000);
         } catch {
             copyMsg = 'Copy failed (clipboard blocked?)';
             setTimeout(() => (copyMsg = ''), 4000);
@@ -89,8 +118,17 @@
 </svelte:head>
 
 <main class="container py-4">
-    <h1 class="h3 mb-3">Generate</h1>
-    <div class="text-muted mb-2">
+    <h1 class="h3 mb-1">Generate</h1>
+
+    <!-- Master missing guard -->
+    {#if !masterFromSession().trim()}
+        <div class="alert alert-warning mb-3">
+            No master passphrase set. Go to the <a href="#/">Home</a> page to enter it.
+        </div>
+    {/if}
+
+    <!-- KDF profile reminder -->
+    <div class="text-muted mb-3">
         KDF profile: <span class="badge text-bg-light">{kdfProfile}</span>
     </div>
 
@@ -139,13 +177,13 @@
                     </div>
                 </div>
 
-                <!-- Changed-label hint lives on its own full-width row so columns stay aligned -->
+                <!-- Changed-label hint on its own row to keep columns aligned -->
                 <div class="col-12">
                     {#if label && labelChanges.length > 0}
                         <div class="alert alert-warning mb-0">
-                            <div class="fs-3 fw-semibold">
+                            <div class="fw-semibold">
                                 Changed label to:
-                                <span class="badge text-bg-danger">{normalizedLabel || 'default'}</span>
+                                <span class="badge text-bg-light">{normalizedLabel || 'default'}</span>
                             </div>
                             <ul class="list-unstyled mb-2 mt-2">
                                 {#each labelChanges as ch}
@@ -154,7 +192,7 @@
                                         <span class="text-muted">— {ch.detail}</span>
                                         <button
                                                 type="button"
-                                                class="btn btn-sm btn-outline-dark"
+                                                class="btn btn-sm btn-outline-warning ms-auto"
                                                 on:click={() => undoChange(ch.key)}
                                                 title="Undo this change"
                                         >
@@ -163,40 +201,26 @@
                                     </li>
                                 {/each}
                             </ul>
-                            <div class="form-text">
-                                You can undo any automatic label adjustment above. <br>
-                                But the derived password depends on the <span class="fw-bold">EXACT spelling</span> of the label (and the version number).
-                            </div>
+                            <button class="btn btn-link p-0" type="button" on:click={resetLabelNormalization}>
+                                Reset normalization
+                            </button>
                         </div>
                     {:else if label}
-                        <div class="fs-5 form-text">
-                            Using label as entered:
-                            <span class="badge text-bg-light">{label}</span>
+                        <div class="form-text">
+                            Using label as entered: <span class="badge text-bg-light">{label}</span>
                         </div>
                     {/if}
                 </div>
             </div>
 
-            <!-- Master secret -->
-            <div class="mt-3">
-                <label class="form-label">Master secret</label>
-                <div class="input-group">
-                    <input
-                            class="form-control"
-                            type={showing ? 'text' : 'password'}
-                            placeholder="enter your memorized passphrase"
-                            bind:value={master}
-                            autocomplete="current-password"
-                    />
-                    <button class="btn btn-outline-secondary" type="button" on:click={() => (showing = !showing)}>
-                        {showing ? 'Hide' : 'Show'}
-                    </button>
-                </div>
-            </div>
-
             <!-- Actions -->
             <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-                <button class="btn btn-primary" type="button" on:click={onDerive} disabled={!master || !domainInput}>
+                <button
+                        class="btn btn-primary"
+                        type="button"
+                        on:click={onDerive}
+                        disabled={!masterFromSession().trim() || !domainInput}
+                >
                     Derive
                 </button>
             </div>
@@ -207,7 +231,7 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <label class="form-label">Password</label>
-            <!-- Input-group guarantees perfect alignment with the Copy button -->
+            <!-- input-group keeps password + copy perfectly aligned -->
             <div class="input-group">
                 <input
                         class="form-control font-monospace"
