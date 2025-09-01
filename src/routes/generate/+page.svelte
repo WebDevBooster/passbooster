@@ -27,9 +27,12 @@
     let copyMsg = '';
     let policy = { ok: false, length: false, digit: false, upper: false, symbol: false };
 
-    // remove the fixed constants:
-    // const OUTPUT_LENGTH = 20;
-    // const SYMBOL_SET = '@#%+=?^';
+    let normalizeTimer;
+    function onDomainInput() {
+        clearTimeout(normalizeTimer);
+        // light debounce so we don't re-run normalization on every keystroke
+        normalizeTimer = setTimeout(doNormalizeDomain, 200);
+    }
 
     async function doNormalizeDomain() {
         normalizedDomain = await normalizeDomain(domainInput);
@@ -45,11 +48,6 @@
 
     function undoChange(key) {
         steps = { ...steps, [key]: false };
-        previewNormalization();
-    }
-
-    function resetLabelNormalization() {
-        steps = { ...defaultLabelSteps };
         previewNormalization();
     }
 
@@ -102,8 +100,14 @@
                         class="form-control"
                         placeholder="example.com or https://sub.example.co.uk/login"
                         bind:value={domainInput}
+                        on:input={onDomainInput}
                         on:blur={doNormalizeDomain}
                 />
+                {#if normalizedDomain}
+                    <div class="form-text">
+                        Will use domain: <span class="badge text-bg-secondary">{normalizedDomain}</span>
+                    </div>
+                {/if}
             </div>
 
             <!-- Label + Version (aligned) -->
@@ -188,15 +192,9 @@
 
             <!-- Actions -->
             <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-                <button class="btn btn-outline-secondary" type="button" on:click={doNormalizeDomain}>Normalize</button>
                 <button class="btn btn-primary" type="button" on:click={onDerive} disabled={!master || !domainInput}>
                     Derive
                 </button>
-                {#if normalizedDomain}
-                    <div class="text-muted ms-1">
-                        Normalized domain: <span class="badge text-bg-light">{normalizedDomain}</span>
-                    </div>
-                {/if}
             </div>
         </div>
     </div>
