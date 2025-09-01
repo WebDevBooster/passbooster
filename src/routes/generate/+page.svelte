@@ -1,22 +1,27 @@
 <script>
-    import { derivePassword } from '$lib/derive.js';
-    import { normalizeDomain } from '$lib/domain.js';
-    import { policyCheck } from '$lib/format.js';
-    import {
-        normalizeLabelDetailed,
-        normalizeVersion
-    } from '$lib/normalize.js';
+    import {onMount, onDestroy} from 'svelte';
 
-    import { settings } from '$lib/stores.js';
-    import { session } from '$lib/session.js';
-    import { onMount } from 'svelte';
+    import {derivePassword} from '$lib/derive.js';
+    import {normalizeDomain} from '$lib/domain.js';
+    import {policyCheck} from '$lib/format.js';
+    import {normalizeLabelDetailed, normalizeVersion} from '$lib/normalize.js';
+    import {settings} from '$lib/stores.js';
+    import {getMaster, clearMaster} from '$lib/sessionMaster.js';
 
-    // reactive stores
+    // reactive settings
     $: s = $settings;
-    $: sess = $session;
 
-    // read master from in-memory session
-    const masterFromSession = () => (sess?.master ?? '');
+    // master access helpers
+    const masterFromSession = () => getMaster();
+    let hasMaster = false;
+
+    function refreshHasMaster() {
+        hasMaster = !!masterFromSession().trim();
+    }
+
+    onMount(() => {
+        refreshHasMaster();
+    });
 
     // form state
     let domainInput = '';
@@ -30,23 +35,18 @@
 
     // label normalization change list + local step toggles
     let labelChanges = [];
-    let steps = null; // local copy of s.labelSteps; stays null until first use
+    let steps = null; // local copy derived from settings on first use
 
     // output + policy
     let output = '';
     let copyMsg = '';
-    let policy = { ok: false, length: false, digit: false, upper: false, symbol: false };
+    let policy = {ok: false, length: false, digit: false, upper: false, symbol: false};
 
     // KDF profile string (for user awareness)
     $: kdfProfile = `argon2id m${s.memoryMiB} t${s.passes} p${s.parallelism} h${s.hashBytes}`;
 
-    onMount(() => {
-        previewNormalization();
-    });
-
     function currentSteps() {
-        // lazily copy global label steps so per-change Undo doesn't mutate settings
-        if (!steps) steps = { ...s.labelSteps };
+        if (!steps) steps = {...s.labelSteps};
         return steps;
     }
 
@@ -55,35 +55,44 @@
     }
 
     let normalizeTimer;
+
     function onDomainInput() {
         clearTimeout(normalizeTimer);
         normalizeTimer = setTimeout(doNormalizeDomain, 200);
     }
 
+    onDestroy(() => clearTimeout(normalizeTimer));
+
     function previewNormalization() {
-        const { output, changes } = normalizeLabelDetailed(label, currentSteps());
-        normalizedLabel = output;
+        const {output: out, changes} = normalizeLabelDetailed(label, currentSteps());
+        normalizedLabel = out;
         normalizedVersion = normalizeVersion(version);
         labelChanges = changes;
     }
 
     function undoChange(key) {
-        steps = { ...currentSteps(), [key]: false };
+        steps = {...currentSteps(), [key]: false};
         previewNormalization();
     }
 
     function resetLabelNormalization() {
-        steps = { ...s.labelSteps };
+        steps = {...s.labelSteps};
         previewNormalization();
     }
 
     async function onDerive() {
         copyMsg = '';
         const master = masterFromSession();
-        if (!master.trim()) { output = ''; return; }
+        if (!master.trim()) {
+            output = '';
+            return;
+        }
 
         const dom = normalizedDomain || (await normalizeDomain(domainInput));
-        if (!dom) { output = ''; return; }
+        if (!dom) {
+            output = '';
+            return;
+        }
 
         const pieces = [dom, normalizedLabel || 'default', normalizedVersion || 'v1'];
 
@@ -96,8 +105,8 @@
             hashBytes: s.hashBytes
         });
 
-        output = K; // derivePassword already returns the formatted string
-        policy = policyCheck(output, { length: s.length, symbols: s.symbols });
+        output = K; // formatted final password
+        policy = policyCheck(output, {length: s.length, symbols: s.symbols});
     }
 
     async function copyOut() {
@@ -111,6 +120,12 @@
             setTimeout(() => (copyMsg = ''), 4000);
         }
     }
+
+    function onForgetMaster() {
+        clearMaster();
+        refreshHasMaster();   // immediately hide the button and show the banner
+        output = '';          // clear any derived output in UI
+    }
 </script>
 
 <svelte:head>
@@ -118,10 +133,22 @@
 </svelte:head>
 
 <main class="container py-4">
-    <h1 class="h3 mb-1">Generate</h1>
+    <div class="d-flex align-items-center gap-2 mb-1">
+        <h1 class="h3 mb-0">Generate</h1>
+        {#if hasMaster}
+            <button
+                    class="btn btn-outline-secondary btn-sm ms-auto"
+                    type="button"
+                    on:click={onForgetMaster}
+                    title="Remove the in-memory passphrase for this tab"
+            >
+                Forget master passphrase
+            </button>
+        {/if}
+    </div>
 
     <!-- Master missing guard -->
-    {#if !masterFromSession().trim()}
+    {#if !hasMaster}
         <div class="alert alert-warning mb-3">
             No master passphrase set. Go to the <a href="#/">Home</a> page to enter it.
         </div>
@@ -155,10 +182,10 @@
             <!-- Label + Version (aligned) -->
             <div class="row g-3">
                 <div class="col-12 col-md-9">
-                    <label class="form-label">Account label (optional)</label>
+                    <label class="form-label">Account username, email or label (optional)</label>
                     <input
                             class="form-control"
-                            placeholder="personal, Work, admin…"
+                            placeholder="personal, work, admin…"
                             bind:value={label}
                             on:input={previewNormalization}
                     />
@@ -219,9 +246,9 @@
                         class="btn btn-primary"
                         type="button"
                         on:click={onDerive}
-                        disabled={!masterFromSession().trim() || !domainInput}
+                        disabled={!hasMaster || !domainInput}
                 >
-                    Derive
+                    Derive password from the input above
                 </button>
             </div>
         </div>
@@ -231,7 +258,6 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <label class="form-label">Password</label>
-            <!-- input-group keeps password + copy perfectly aligned -->
             <div class="input-group">
                 <input
                         class="form-control font-monospace"
@@ -245,7 +271,6 @@
             </div>
             <small class="text-muted d-block mt-1">{copyMsg}</small>
 
-            <!-- Policy chips -->
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <span class={"badge rounded-pill " + (policy.length ? "text-bg-success" : "text-bg-secondary")}>length</span>
                 <span class={"badge rounded-pill " + (policy.digit ? "text-bg-success" : "text-bg-secondary")}>digit</span>
@@ -257,6 +282,13 @@
           </span>
                 {/if}
             </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mt-2 text-center">
+            <a class="link-secondary px-2" href="#/help">❔ Why &amp; How + Help</a>
+            <a class="link-secondary px-2" href="#/settings">⚙️ Settings</a>
         </div>
     </div>
 </main>

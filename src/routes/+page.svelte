@@ -1,12 +1,12 @@
 <script>
-    import { setMaster } from '$lib/session.js';
+    import { setMaster } from '$lib/sessionMaster.js';
+    import { onMount } from 'svelte';
 
-    let online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    if (typeof window !== 'undefined') {
-        const update = () => (online = navigator.onLine);
-        window.addEventListener('online', update);
-        window.addEventListener('offline', update);
-    }
+    let masterEl;
+    onMount(() => {
+        // slight delay helps on some browsers before layout is ready
+        setTimeout(() => masterEl?.focus({ preventScroll: true }), 0);
+    });
 
     let master = '';
     let showing = false;
@@ -15,7 +15,10 @@
         e?.preventDefault();
         const m = master.trim();
         if (!m) return;
-        // Works on file:// and http(s) with hash routing
+
+        setMaster(m);
+
+        // Hash navigation works on file:// and server with hash router
         window.location.hash = '/generate';
     }
 </script>
@@ -36,8 +39,8 @@
                         <p class="lead text-muted mb-4">Offline, deterministic password generator (Argon2id).</p>
 
                         <!-- Master passphrase -->
-                        <form class="mx-auto" style="max-width: 520px" on:submit={enterVault}>
-                            <label for="master" class="form-label">Master passphrase</label>
+                        <form class="mx-auto" style="max-width: 520px" on:submit|preventDefault={enterVault}>
+                            <label class="form-label" for="master">Master passphrase</label>
                             <div class="input-group">
                                 <input
                                         id="master"
@@ -45,14 +48,16 @@
                                         type={showing ? 'text' : 'password'}
                                         placeholder="enter your memorized passphrase to get started"
                                         bind:value={master}
+                                        bind:this={masterEl}
                                         autocomplete="current-password"
+                                        autofocus
                                 />
                                 <button class="btn btn-outline-secondary" type="button" on:click={() => (showing = !showing)}>
                                     {showing ? 'Hide' : 'Show'}
                                 </button>
                             </div>
                             <div class="form-text mb-3">
-                                Your passphrase only stays in device memory until page reload. That's by design.
+                                Your passphrase will only stay in memory for this tab until you close it or click ‘Forget’ on the next page.
                             </div>
 
                             <div class="d-flex flex-wrap justify-content-center gap-2">
@@ -65,15 +70,12 @@
                 </div>
             </div>
         </div>
+
+        <!-- non-essential buttons in a separate row -->
         <div class="row">
-            <div class="col-12 mb-3 text-center">
-                <a class="btn btn-outline-secondary" href="#/help">Why, How &amp; Help</a>
-                <a class="btn btn-outline-secondary" href="#/settings">Settings</a>
-            </div>
-            <div class="col-12 text-center">
-            <span class={"badge rounded-pill " + (online ? "bg-success" : "bg-warning")}>
-              {online ? 'Ready (works offline after build)' : 'Offline'}
-            </span>
+            <div class="col-12 mt-2 text-center">
+                <a class="link-secondary px-2" href="#/help">❔ Why &amp; How + Help</a>
+                <a class="link-secondary px-2" href="#/settings">⚙️ Settings</a>
             </div>
         </div>
     </main>
