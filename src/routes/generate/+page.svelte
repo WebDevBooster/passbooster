@@ -7,6 +7,8 @@
         normalizeVersion,
         defaultLabelSteps
     } from '$lib/normalize.js';
+    import { settings } from '$lib/stores.js';
+    $: s = $settings;
 
     let domainInput = '';
     let label = '';
@@ -25,8 +27,9 @@
     let copyMsg = '';
     let policy = { ok: false, length: false, digit: false, upper: false, symbol: false };
 
-    const OUTPUT_LENGTH = 20;
-    const SYMBOL_SET = '@#%+=?^';
+    // remove the fixed constants:
+    // const OUTPUT_LENGTH = 20;
+    // const SYMBOL_SET = '@#%+=?^';
 
     async function doNormalizeDomain() {
         normalizedDomain = await normalizeDomain(domainInput);
@@ -58,8 +61,15 @@
 
         // Build salt pieces; delimiter is a safe control char.
         const pieces = [dom, normalizedLabel || 'default', normalizedVersion || 'v1'];
-        output = await derivePassword(master, pieces, { length: OUTPUT_LENGTH, symbols: SYMBOL_SET });
-        policy = policyCheck(output, { length: OUTPUT_LENGTH, symbols: SYMBOL_SET });
+        output = await derivePassword(master, pieces, {
+            length: s.length,
+            symbols: s.symbols,
+            passes: s.passes,
+            memoryMiB: s.memoryMiB,
+            parallelism: s.parallelism,
+            hashBytes: s.hashBytes
+        });
+        policy = policyCheck(output, { length: s.length, symbols: s.symbols });
     }
 
     async function copyOut() {
