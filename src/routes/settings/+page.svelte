@@ -1,29 +1,36 @@
 <script>
     import { settings, DEFAULTS } from '$lib/stores.js';
     import { argon2id } from 'hash-wasm';
-    $: s = $settings;  // auto-subscribed value
 
-    // UI state
-    let tuning = false;
-    let tuneMsg = '';
+    // read settings reactively
+    let s; $: s = $settings;
 
-    // Helpers
-    function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+    const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n ?? lo));
 
     function resetDefaults() {
         settings.set(structuredClone(DEFAULTS));
         tuneMsg = '';
     }
 
-    function validateSymbols() {
-        if (!s.symbols || s.symbols.length < 1) {
-            settings.update(v => ({ ...v, symbols: '@#%+=?^' }));
-        }
+    function updateNumber(key, value, lo, hi) {
+        const n = clamp(Number(value), lo, hi);
+        settings.update(v => ({ ...v, [key]: n }));
     }
 
-    // Measure Argon2id time for given params
+    function updateText(key, value, fallback = '') {
+        settings.update(v => ({ ...v, [key]: value?.toString() || fallback }));
+    }
+
+    // Label step toggles
+    function toggleStep(step, checked) {
+        settings.update(v => ({ ...v, labelSteps: { ...v.labelSteps, [step]: !!checked } }));
+    }
+
+    // Auto-tune Argon2id
+    let tuning = false;
+    let tuneMsg = '';
+
     async function measureOnce({ passes, memoryMiB, parallelism }) {
-        const enc = new TextEncoder();
         const password = crypto.getRandomValues(new Uint8Array(16));
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const t0 = performance.now();
@@ -36,50 +43,42 @@
             hashLength: 16,
             outputType: 'binary'
         });
-        const t1 = performance.now();
-        return t1 - t0;
+        return performance.now() - t0;
     }
 
-    // Auto-tune: try memory sizes to land roughly 300–700ms (desktop),
-    // backing off if the device is weaker. Keeps passes fixed at 3 initially.
     async function autoTune() {
         tuning = true;
         tuneMsg = 'Tuning…';
         try {
             const passes = 3;
             const parallelism = 1;
-            const candidates = [256, 192, 128, 96, 64]; // MiB
-            let pickedMem = 64;
-            let pickedMs = null;
+            const candidates = [256, 192, 128, 96, 64];
+
+            let pickMem = 64;
+            let pickMs = Infinity;
 
             for (const mem of candidates) {
                 try {
                     const ms = await measureOnce({ passes, memoryMiB: mem, parallelism });
-                    // pick first that lands within 300–1000ms
-                    if (ms >= 300 && ms <= 1000) {
-                        pickedMem = mem; pickedMs = Math.round(ms); break;
-                    }
-                    // otherwise keep the slowest acceptable so far
-                    if (!pickedMs || (ms > pickedMs && ms <= 1500)) {
-                        pickedMem = mem; pickedMs = Math.round(ms);
-                    }
+                    // prefer within 300–1000ms, otherwise keep the best so far
+                    if (ms >= 300 && ms <= 1000) { pickMem = mem; pickMs = ms; break; }
+                    if (ms < pickMs) { pickMem = mem; pickMs = ms; }
                 } catch {
-                    // likely memory too high for device; try lower
+                    // memory too high on this device; try lower value
                     continue;
                 }
             }
 
-            // If still too fast (<300ms) at 256 MiB, bump passes to 4
+            // If still too fast at 256 MiB, try passes=4
             let finalPasses = passes;
-            if (pickedMs !== null && pickedMs < 300 && pickedMem === 256) {
+            if (pickMem === 256 && pickMs < 300) {
                 finalPasses = 4;
-                const ms2 = await measureOnce({ passes: finalPasses, memoryMiB: pickedMem, parallelism });
-                pickedMs = Math.round(ms2);
+                pickMs = await measureOnce({ passes: finalPasses, memoryMiB: pickMem, parallelism });
             }
 
-            settings.update(v => ({ ...v, memoryMiB: pickedMem, passes: finalPasses, parallelism }));
-            tuneMsg = `Set memory to ${pickedMem} MiB, passes ${finalPasses} (~${pickedMs ?? '?'} ms).`;
-        } catch (e) {
+            settings.update(v => ({ ...v, memoryMiB: pickMem, passes: finalPasses, parallelism }));
+            tuneMsg = `Set memory to ${pickMem} MiB, passes ${finalPasses} (~${Math.round(pickMs)} ms).`;
+        } catch {
             tuneMsg = 'Auto-tune failed (WASM blocked or low memory).';
         } finally {
             tuning = false;
@@ -91,96 +90,198 @@
     <title>PassBooster — Settings</title>
 </svelte:head>
 
-<main class="wrap">
-    <h1>Settings</h1>
+<main class="container py-4">
+    <h1 class="h3 mb-3">Settings</h1>
 
-    <!-- Output formatting -->
-    <section class="card">
-        <h2>Output</h2>
-        <div class="grid">
-            <label>
-                <span>Length</span>
-                <input type="number" min="12" max="128" bind:value={s.length}
-                       on:change={() => settings.update(v => ({ ...v, length: clamp(+s.length || 20, 12, 128) }))} />
-            </label>
+    <!-- Output -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h5">Output</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Length</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.length}
+                            min="12" max="128"
+                            on:input={(e) => updateNumber('length', e.currentTarget.value, 12, 128)}
+                    />
+                    <div class="form-text">12–128 characters.</div>
+                </div>
 
-            <label>
-                <span>Symbol set</span>
-                <input bind:value={s.symbols} on:change={validateSymbols} />
-                <small class="muted">Used for deterministic symbol placement.</small>
-            </label>
+                <div class="col-12 col-md-9">
+                    <label class="form-label">Symbol set</label>
+                    <input
+                            class="form-control"
+                            value={s.symbols}
+                            on:input={(e) => updateText('symbols', e.currentTarget.value, '@#%+=?^')}
+                    />
+                    <div class="form-text">Used for deterministic symbol placement.</div>
+                </div>
+            </div>
         </div>
-    </section>
+    </div>
 
-    <!-- Argon2id parameters -->
-    <section class="card">
-        <h2>Argon2id</h2>
-        <div class="grid">
-            <label>
-                <span>Passes (iterations)</span>
-                <input type="number" min="1" max="6" bind:value={s.passes}
-                       on:change={() => settings.update(v => ({ ...v, passes: clamp(+s.passes || 3, 1, 6) }))} />
-            </label>
-            <label>
-                <span>Memory (MiB)</span>
-                <input type="number" min="32" max="512" step="32" bind:value={s.memoryMiB}
-                       on:change={() => settings.update(v => ({ ...v, memoryMiB: clamp(+s.memoryMiB || 128, 32, 512) }))} />
-            </label>
-            <label>
-                <span>Parallelism (lanes)</span>
-                <input type="number" min="1" max="4" bind:value={s.parallelism}
-                       on:change={() => settings.update(v => ({ ...v, parallelism: clamp(+s.parallelism || 1, 1, 4) }))} />
-            </label>
-            <label>
-                <span>Raw hash bytes</span>
-                <input type="number" min="16" max="64" step="1" bind:value={s.hashBytes}
-                       on:change={() => settings.update(v => ({ ...v, hashBytes: clamp(+s.hashBytes || 32, 16, 64) }))} />
-                <small class="muted">Before formatting (base64url + placements).</small>
-            </label>
+    <!-- Argon2id -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h5">Argon2id</h2>
+            <div class="row g-3">
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Passes (iterations)</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.passes}
+                            min="1" max="6"
+                            on:input={(e) => updateNumber('passes', e.currentTarget.value, 1, 6)}
+                    />
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Memory (MiB)</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.memoryMiB}
+                            min="32" max="512" step="32"
+                            on:input={(e) => updateNumber('memoryMiB', e.currentTarget.value, 32, 512)}
+                    />
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Parallelism (lanes)</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.parallelism}
+                            min="1" max="4"
+                            on:input={(e) => updateNumber('parallelism', e.currentTarget.value, 1, 4)}
+                    />
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Raw hash bytes</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.hashBytes}
+                            min="16" max="64"
+                            on:input={(e) => updateNumber('hashBytes', e.currentTarget.value, 16, 64)}
+                    />
+                    <div class="form-text">Material before formatting.</div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 mt-3">
+                <button class="btn btn-outline-secondary" disabled={tuning} on:click={autoTune}>
+                    {tuning ? 'Tuning…' : 'Auto-tune'}
+                </button>
+                <div class="text-muted" aria-live="polite">{tuneMsg}</div>
+            </div>
         </div>
-        <div class="row gap">
-            <button class="btn" disabled={tuning} on:click={autoTune}>{tuning ? 'Tuning…' : 'Auto-tune'}</button>
-            <span class="muted">{tuneMsg}</span>
-        </div>
-    </section>
+    </div>
 
     <!-- Clipboard -->
-    <section class="card">
-        <h2>Clipboard</h2>
-        <div class="grid">
-            <label>
-                <span>Auto-clear timer (seconds)</span>
-                <input type="number" min="0" max="120" bind:value={s.clipboardClearSec}
-                       on:change={() => settings.update(v => ({ ...v, clipboardClearSec: clamp(+s.clipboardClearSec || 20, 0, 120) }))} />
-                <small class="muted">UI hint only — browsers don’t let apps clear the clipboard.</small>
-            </label>
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h5">Clipboard</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Auto-clear timer (seconds)</label>
+                    <input
+                            type="number"
+                            class="form-control"
+                            value={s.clipboardClearSec}
+                            min="0" max="120"
+                            on:input={(e) => updateNumber('clipboardClearSec', e.currentTarget.value, 0, 120)}
+                    />
+                    <div class="form-text">UI reminder only; browsers can’t force-clear the clipboard.</div>
+                </div>
+            </div>
         </div>
-    </section>
+    </div>
 
     <!-- Label normalization -->
-    <section class="card">
-        <h2>Label normalization</h2>
-        <div class="toggles">
-            <label><input type="checkbox" bind:checked={s.labelSteps.unicodeNFKC}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Unicode canonicalization (NFKC)</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.trim}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Trim outer spaces</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.collapseWhitespaceToDash}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Collapse internal whitespace to “-”</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.toLower}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Lowercase (case-insensitive labels)</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.restrictCharset}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Restrict to <code>[a-z0-9._@-]</code> (replace others with “-”)</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.collapseDashes}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Collapse repeated “-”</label>
-            <label><input type="checkbox" bind:checked={s.labelSteps.trimDashes}
-                          on:change={() => settings.update(v => ({ ...v }))} /> Trim leading/trailing “-”</label>
-        </div>
-        <small class="muted">These defaults mirror the Generate page’s per-change preview & undo.</small>
-    </section>
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h5">Label normalization</h2>
 
-    <div class="row gap">
-        <button class="btn" on:click={resetDefaults}>Reset to defaults</button>
-        <span class="muted">Settings save automatically to this browser only.</span>
+            <div class="row row-cols-1 row-cols-md-2 g-2">
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="nfkc" type="checkbox"
+                               checked={s.labelSteps.unicodeNFKC}
+                               on:change={(e) => toggleStep('unicodeNFKC', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="nfkc">Unicode canonicalization (NFKC)</label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="trim" type="checkbox"
+                               checked={s.labelSteps.trim}
+                               on:change={(e) => toggleStep('trim', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="trim">Trim outer spaces</label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="collapseSpace" type="checkbox"
+                               checked={s.labelSteps.collapseWhitespaceToDash}
+                               on:change={(e) => toggleStep('collapseWhitespaceToDash', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="collapseSpace">Collapse internal whitespace to “-”</label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="lower" type="checkbox"
+                               checked={s.labelSteps.toLower}
+                               on:change={(e) => toggleStep('toLower', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="lower">Lowercase (case-insensitive labels)</label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="restrict" type="checkbox"
+                               checked={s.labelSteps.restrictCharset}
+                               on:change={(e) => toggleStep('restrictCharset', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="restrict">
+                            Restrict to <code>[a-z0-9._@-]</code> (replace others with “-”)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="collapseDash" type="checkbox"
+                               checked={s.labelSteps.collapseDashes}
+                               on:change={(e) => toggleStep('collapseDashes', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="collapseDash">Collapse repeated “-”</label>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" id="trimDash" type="checkbox"
+                               checked={s.labelSteps.trimDashes}
+                               on:change={(e) => toggleStep('trimDashes', e.currentTarget.checked)} />
+                        <label class="form-check-label" for="trimDash">Trim leading/trailing “-”</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-muted mt-2">These defaults mirror the Generate page’s preview & undo.</div>
+        </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary" on:click={resetDefaults}>Reset to defaults</button>
+        <div class="text-muted">Settings save automatically to this browser only.</div>
     </div>
 </main>
