@@ -187,9 +187,15 @@
                         <input
                                 class="form-control"
                                 value={s.symbols}
-                                on:input={(e) => updateText('symbols', e.currentTarget.value, '@#%+=?^')}
+                                spellcheck="false"
+                                autocomplete="off"
+                                inputmode="text"
+                                on:input={(e) => updateText('symbols', e.currentTarget.value.replace(/\s+/g, ''), '@')}
                         />
-                        <div class="form-text">Used for deterministic symbol placement.</div>
+                        <div class="form-text">
+                            Used for deterministic symbol placement. Leave blank to disable symbols.
+                            Default: <code>@</code>. Changing the set or its order will change all derived passwords.
+                        </div>
                     </div>
                 </div>
             </div>

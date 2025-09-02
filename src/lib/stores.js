@@ -7,7 +7,9 @@ const STORAGE_KEY = 'passbooster.settings.v1';
 export const DEFAULTS = {
     // Output formatting
     length: 20,
-    symbols: '@#%+=?^',
+    symbols: '@', // Deliberately limiting default symbols to just @
+    // This ensures compatibility with websites that might not allow certain symbols in password
+    // The user can add any additional symbols in the settings
 
     // Argon2id parameters (LOCKED by default)
     passes: 3,

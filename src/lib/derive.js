@@ -6,41 +6,28 @@ import { formatPassword } from './format.js';
 export const SALT_DELIM = '\u001F'; // Unit Separator
 
 /**
- * Derive + format using Argon2id (hash-wasm embeds WASM; no Vite plugins needed).
- * opts:
- *  - length (chars)
- *  - symbols (string)
- *  - passes  -> argon2 "iterations" (time cost)
- *  - memoryMiB -> argon2 memory size in MiB (converted to KiB)
- *  - parallelism
- *  - hashBytes -> output K length in bytes before formatting
+ * Derive a deterministic password string from:
+ *  master (secret), pieces = [domain, label, version], and options.
  */
-export async function derivePassword(
-    master,
-    saltPieces,
-    {
-        length = 20,
-        symbols = '@#%+=?^',
-        passes = 3,
-        memoryMiB = 128,
-        parallelism = 1,
-        hashBytes = 32
-    } = {}
-) {
-    const enc = new TextEncoder();
-    const password = enc.encode(master);
-    const salt = enc.encode(Array.isArray(saltPieces) ? saltPieces.join(SALT_DELIM) : saltPieces);
+export async function derivePassword(master, pieces, opts) {
+    const te = new TextEncoder();
+    const saltStr = pieces.join(SALT_DELIM);
+    const salt = te.encode(saltStr);
+    const password = te.encode(master);
 
-    // hash-wasm expects memorySize in KiB and uses "iterations" for time cost
-    const K = await argon2id({
+    const hash = await argon2id({
         password,
         salt,
-        parallelism,
-        iterations: passes,
-        memorySize: Math.max(8, memoryMiB | 0) * 1024, // KiB
-        hashLength: hashBytes,
-        outputType: 'binary' // Uint8Array
+        iterations: opts.passes,
+        parallelism: opts.parallelism,
+        memorySize: opts.memoryMiB * 1024, // KiB
+        hashLength: opts.hashBytes,
+        outputType: 'binary'
     });
 
-    return formatPassword(K, length, symbols);
+    // Enforce policy via deterministic formatter (no RNG).
+    return formatPassword(new Uint8Array(hash), {
+        length: opts.length,
+        symbols: opts.symbols
+    });
 }

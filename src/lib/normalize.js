@@ -63,7 +63,7 @@ function describeDiff(key, before, after) {
         case 'trim': {
             const lead = before.match(/^\s+/)?.[0]?.length ?? 0;
             const trail = before.match(/\s+$/)?.[0]?.length ?? 0;
-            if (lead || trail) return `Removed ${lead} leading and ${trail} trailing space(s).`;
+            if (lead || trail) return `Removed ${lead} leading + ${trail} trailing space(s).`;
             return 'Trimmed spaces.';
         }
         case 'collapseWhitespaceToDash': {
@@ -87,7 +87,7 @@ function describeDiff(key, before, after) {
         case 'trimDashes': {
             const lead = /^-+/.test(before);
             const trail = /-+$/.test(before);
-            if (lead || trail) return `Removed ${lead ? 'leading' : ''}${lead && trail ? ' and ' : ''}${trail ? 'trailing' : ''} "-".`;
+            if (lead || trail) return `Removed ${lead ? 'leading' : ''}${lead && trail ? ' + ' : ''}${trail ? 'trailing' : ''} "-".`;
             return 'No leading/trailing "-".';
         }
         default: return 'Changed.';
