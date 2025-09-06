@@ -1,28 +1,36 @@
 <script>
-    import { setMaster } from '$lib/sessionMaster.js';
+    import { setMaster, getMaster } from '$lib/sessionMaster.js';
     import { onMount } from 'svelte';
 
     let masterEl;
-    onMount(() => {
-        // slight delay helps on some browsers before layout is ready
-        setTimeout(() => masterEl?.focus({ preventScroll: true }), 0);
-    });
-
     let master = '';
     let showing = false;
+
+    onMount(() => {
+        // defer to ensure DOM is ready
+        setTimeout(() => {
+            const has = (getMaster() || '').trim().length > 0;
+            const atHome = !window.location.hash || window.location.hash === '#/' || window.location.hash === '#';
+            if (has && atHome) {
+                // Master already in memory → jump straight to Generate
+                window.location.hash = '/generate';
+                return;
+            }
+            // Otherwise focus the field so user can type immediately
+            masterEl?.focus({ preventScroll: true });
+        }, 0);
+    });
 
     function enterVault(e) {
         e?.preventDefault();
         const m = master.trim();
         if (!m) return;
-
         setMaster(m);
 
         // Hash navigation works on file:// and server with hash router
         window.location.hash = '/generate';
     }
 </script>
-
 
 <svelte:head>
     <title>PassBooster — Offline deterministic password generator</title>
