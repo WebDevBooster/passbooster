@@ -319,7 +319,8 @@
 
     <div class="row">
         <div class="col-12 mt-2 text-center">
-            <a class="link-secondary px-2" href="#/help">❔ Why &amp; How + Help</a>
+            <a class="link-secondary px-2" href="#/help">❔ Why &amp; How</a>
+            <a class="link-secondary px-2" href="#">📔 Algo Card</a>
             <a class="link-secondary px-2" href="#/settings">⚙️ Settings</a>
         </div>
     </div>
