@@ -154,7 +154,11 @@
         }
         .no-print { display: none !important; }
         body { background: #fff !important; }
-        @page { size: A6 portrait; margin: 10mm; }
+        @page {
+            /* A6 portrait: width x height */
+            size: 105mm 148mm;
+            margin: 10mm;
+        }
 
         /* Expand the print area to fill the page nicely */
         .print-area { max-width: none !important; }
