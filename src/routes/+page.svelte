@@ -1,4 +1,5 @@
 <script>
+    import favicon from '$lib/assets/favicon.svg';
     import { setMaster, getMaster } from '$lib/sessionMaster.js';
     import { onMount } from 'svelte';
 
@@ -43,7 +44,7 @@
             <div class="col-12">
                 <div class="card shadow-sm mb-3">
                     <div class="card-body text-center">
-                        <h1 class="mb-1">PassBooster</h1>
+                        <h1 class="mb-1"><img src="{favicon}" height="48" alt="PassBooster logo"> PassBooster</h1>
                         <p class="lead text-muted mb-4">Offline, deterministic password generator (Argon2id).</p>
 
                         <!-- Master passphrase -->
@@ -82,8 +83,9 @@
         <!-- non-essential buttons in a separate row -->
         <div class="row">
             <div class="col-12 mt-2 text-center">
-                <a class="link-secondary px-2" href="#/help">❔ Why &amp; How + Help</a>
-                <a class="link-secondary px-2" href="#/settings">⚙️ Settings</a>
+                <a class="link-secondary px-2" href="#/help">Why &amp; How</a>
+                <a class="link-secondary px-2" href="#">Algo Card</a>
+                <a class="link-secondary px-2" href="#/settings">Settings</a>
             </div>
         </div>
     </main>

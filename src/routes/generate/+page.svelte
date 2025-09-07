@@ -153,13 +153,6 @@
         {/if}
     </div>
 
-    <!-- Master missing guard -->
-    {#if !hasMaster}
-        <div class="alert alert-warning mb-3">
-            No master passphrase set. Go to the <a href="#/">Home</a> page to enter it.
-        </div>
-    {/if}
-
     <!-- KDF profile reminder -->
     <div class="text-muted mb-3 position-relative d-inline-flex align-items-center gap-1">
         KDF profile: <span class="badge text-bg-light">{kdfProfile}</span>
@@ -341,19 +334,27 @@
 
             <!-- Actions -->
             <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-                <button
-                        class="btn btn-primary"
-                        type="submit"
-                        on:click={onDerive}
-                        disabled={!hasMaster || !domainInput || deriving}
-                >
-                    Derive password from the input above
-                </button>
+                {#if !hasMaster}
+                    <div class="w-100 alert alert-warning">
+                    No master passphrase set. <br>
+                        Enter passphrase on the <a href="#/">home page</a>.
+                    </div>
+                {:else}
+                    <button
+                            class="btn btn-primary"
+                            type="submit"
+                            on:click={onDerive}
+                            disabled={!hasMaster || !domainInput || deriving}
+                    >
+                        Derive password from the input above
+                    </button>
+                {/if}
             </div>
             </form>
         </div>
     </div>
 
+    {#if hasMaster}
     <!-- Output card -->
     <div class="card shadow-sm">
         <div class="card-body">
@@ -374,12 +375,13 @@
             <small class="bg-success text-light d-block mt-1 text-center">{copyMsg}</small>
         </div>
     </div>
+    {/if}
 
     <div class="row">
         <div class="col-12 mt-2 text-center">
-            <a class="link-secondary px-2" href="#/help">❔ Why &amp; How</a>
-            <a class="link-secondary px-2" href="#">📔 Algo Card</a>
-            <a class="link-secondary px-2" href="#/settings">⚙️ Settings</a>
+            <a class="link-secondary px-2" href="#/help">Why &amp; How</a>
+            <a class="link-secondary px-2" href="#">Algo Card</a>
+            <a class="link-secondary px-2" href="#/settings">Settings</a>
         </div>
     </div>
 </main>
