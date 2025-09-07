@@ -2,6 +2,10 @@
 
 /* Config (order matters) */
 @import "bootstrap/scss/functions";
+
+// Default variable overrides
+$code-font-size: 1em;
+
 @import "bootstrap/scss/variables";
 @import "bootstrap/scss/maps";
 @import "bootstrap/scss/mixins";

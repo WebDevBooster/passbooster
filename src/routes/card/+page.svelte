@@ -108,7 +108,7 @@
                     <div class="col-12">
                         <h3 class="h6 mb-1">Inputs</h3>
                         <ul class="mb-0 small">
-                            <li><strong>Domain:</strong> use the site’s eTLD+1 (e.g. <code>sub.example.co.uk</code> → <code>example.co.uk</code>)</li>
+                            <li><strong>Domain:</strong> use the site’s eTLD+1 (e.g. <code>example.com</code>)</li>
                             <li><strong>Label (optional):</strong> username/email/note; normalization applies (see below); default is <code>default</code></li>
                             <li><strong>Version:</strong> rotation tag (e.g. <code>v1</code>, <code>v2</code>) to intentionally change the password</li>
                             <li><strong>Master:</strong> your memorized passphrase (never written here)</li>
@@ -129,25 +129,23 @@
                                     <code class="ms-1">{delimInfo.text}</code>
                                 {/if}
                             </div>
-                            <div><strong>KDF profile:</strong> <span class="badge text-bg-light">{kdfProfile}</span></div>
+                            <div><strong>KDF profile:</strong> <code class="fw-bold">{kdfProfile}</code></div>
                         </div>
                     </div>
 
                     <!-- Output rules -->
                     <div class="col-12">
                         <h3 class="h6 mb-1">Output rules (deterministic)</h3>
-                        <ul class="mb-0 small">
-                            <li>Length: <strong>{s.length}</strong> characters</li>
-                            <li>Includes: <strong>≥ 1 uppercase</strong>, <strong>≥ 1 digit</strong> (no 3+ digits in a row), and <strong>{symbolNote}</strong></li>
-                            <li>All placements are derived from the hash (no randomness). Same inputs → same password.</li>
-                        </ul>
+                        <div class="mb-0 small">
+                            Length: <strong>{s.length}</strong> characters. Includes: <strong>≥ 1 uppercase</strong>, <strong>≥ 1 digit</strong> (no 3+ digits in a row) and <strong>{symbolNote}</strong>. All placements are derived from the hash (no randomness). Same inputs = same password.
+                        </div>
                     </div>
 
                     <!-- Label normalization -->
                     <div class="col-12">
                         <h3 class="h6 mb-1">Label normalization</h3>
                         {#if enabledSteps.length > 0}
-                            <ul class="mb-0 small">
+                            <ul class="mb-0 small pb-cols">
                                 {#each enabledSteps as step}
                                     <li>{step}</li>
                                 {/each}
@@ -162,8 +160,8 @@
                         <h3 class="h6 mb-1">Notes</h3>
                         <ul class="mb-0 small">
                             <li><strong>Do not</strong> write your master passphrase on this card.</li>
-                            <li>Keep <strong>Symbols</strong>, <strong>Length</strong>, and <strong>KDF</strong> identical across devices; changing any of these changes all passwords.</li>
-                            <li>If a site rejects certain symbols: adjust Symbols for that derive and bump Version (e.g. <code>v2</code>).</li>
+                            <li>Keep <strong>Symbols</strong>, <strong>Length</strong> and <strong>KDF</strong> identical across devices. Changing any of these changes all passwords.</li>
+                            <li>If a site rejects certain symbols, adjust symbols &amp; bump version (e.g. <code>v2</code>).</li>
                         </ul>
                     </div>
                 </div>
@@ -177,9 +175,9 @@
 </main>
 
 <style>
-    /* Screen preview sizing */
+    /* Screen preview sizing (approx A5 width on screen) */
     .print-area {
-        max-width: 420px; /* roughly A6 width on screen */
+        max-width: 560px; /* A5 ≈ 148mm = 5.83in ≈ 560px @96dpi */
     }
 
     .algo-card {
@@ -190,6 +188,29 @@
         font-weight: 600;
     }
 
+    code, .badge.text-bg-light {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    /* Two columns on roomy screens/print, one column on small screens */
+    .pb-cols {
+        column-count: 2; /* force 2 columns */
+        column-gap: 1rem;
+        /* if auto-fit instead, use:
+           column-width: 220px;   // browser decides 1 or 2 columns based on width
+        */
+    }
+    .pb-cols li {
+        break-inside: avoid; /* avoid splitting an item */
+        -webkit-column-break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* Single column on narrow viewports */
+    @media (max-width: 576px) {
+        .pb-cols { column-count: 1; }
+    }
+
     /* Print styles */
     @media print {
         :root {
@@ -198,10 +219,17 @@
         }
         .no-print { display: none !important; }
         body { background: #fff !important; }
-        @page { size: A6 portrait; margin: 10mm; }
+        @page { size: A5 portrait; margin: 0; }
 
         /* Expand the print area to fill the page nicely */
         .print-area { max-width: none !important; }
-        .algo-card { box-shadow: none !important; border: 1px solid rgba(0,0,0,.12); }
+        .algo-card {
+          box-shadow: none !important;
+          border: 1px solid rgba(0,0,0,.12);
+          break-inside: avoid;
+        }
+
+        .pb-cols { column-count: 2; column-gap: 6mm; }
+        .pb-cols li { break-inside: avoid; }
     }
 </style>
