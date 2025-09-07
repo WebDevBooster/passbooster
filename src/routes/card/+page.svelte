@@ -144,8 +144,6 @@
         font-weight: 600;
     }
 
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-
     /* Print styles */
     @media print {
         :root {
