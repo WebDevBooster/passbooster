@@ -6,7 +6,7 @@
     // live settings
     $: s = $settings;
 
-    // Friendly titles for label normalization steps (fallback to the key if unknown)
+    // Friendly titles for label normalization steps
     const STEP_LABELS = {
         trim: 'Trim outer spaces',
         collapse_ws: 'Collapse inner spaces',
@@ -15,20 +15,58 @@
         map_lookalikes: 'Map lookalike chars',
         keep_safe: 'Keep only [a–z 0–9 . _ -]'
     };
-    $: enabledSteps = Object.entries(s.labelSteps || {})
-        .filter(([, v]) => !!v)
-        .map(([k]) => STEP_LABELS[k] || k);
 
+    // List of enabled normalization steps (human-readable)
+    $: enabledSteps =
+        Object.entries(s.labelSteps || {})
+            .filter(([, v]) => !!v)
+            .map(([k]) => STEP_LABELS[k] || k);
+
+    // KDF profile summary (matches Generate page)
     $: kdfProfile = `argon2id m${s.memoryMiB} t${s.passes} p${s.parallelism} h${s.hashBytes}`;
-    $: symbolNote = s.symbols ? `1 symbol from “${s.symbols}”` : 'no symbols (symbols disabled)';
-    $: saltFormula = `salt = eTLD+1 ${SALT_DELIM} label ${SALT_DELIM} version`;
+
+    // Output policy summary
+    $: symbolNote = (s.symbols && s.symbols.length > 0)
+        ? `1 symbol from “${s.symbols}”`
+        : 'no symbols (symbols disabled)';
+
+    // Salt formula text (don’t embed raw delimiter)
+    const saltFormula = 'join([eTLD+1, label, version], DELIM)';
+
+    // Describe delimiter safely for print (hex + control-name if non-printable)
+    function describeDelimiter(delim) {
+        if (!delim) return { printable: true, text: "'' (empty)" };
+
+        const cps = [...delim].map(ch => ch.codePointAt(0));
+        const printable = cps.every(cp => cp >= 0x20 && cp <= 0x7E); // ASCII printable
+
+        const NAMES = {
+            0x00:'NUL',0x01:'SOH',0x02:'STX',0x03:'ETX',0x04:'EOT',0x05:'ENQ',0x06:'ACK',0x07:'BEL',
+            0x08:'BS',0x09:'TAB',0x0A:'LF',0x0B:'VT',0x0C:'FF',0x0D:'CR',0x0E:'SO',0x0F:'SI',
+            0x10:'DLE',0x11:'DC1',0x12:'DC2',0x13:'DC3',0x14:'DC4',0x15:'NAK',0x16:'SYN',0x17:'ETB',
+            0x18:'CAN',0x19:'EM',0x1A:'SUB',0x1B:'ESC',0x1C:'FS',0x1D:'GS',0x1E:'RS',0x1F:'US',0x7F:'DEL'
+        };
+
+        if (printable) {
+            return { printable: true, text: `'${delim}'` };
+        }
+
+        const parts = cps.map(cp => {
+            const name = NAMES[cp] || 'control';
+            return `U+${cp.toString(16).toUpperCase().padStart(4,'0')} ${name}`;
+        });
+
+        return { printable: false, text: parts.join(' + ') };
+    }
+
+    $: delimInfo = describeDelimiter(SALT_DELIM);
 
     function printCard() {
         window.print();
     }
 
     onMount(() => {
-        // nothing required; reserved if you later add dynamic sizing controls
+        // nothing required; reserved for adding dynamic sizing controls
     });
 </script>
 
@@ -58,7 +96,7 @@
                 <header class="d-flex justify-content-between align-items-start">
                     <div>
                         <h2 class="h5 mb-0">PassBooster — Algorithm</h2>
-                        <small class="text-muted">Reference card (keep separate from your master passphrase)</small>
+                        <small class="text-muted">Reference card (keep separate from master passphrase)</small>
                     </div>
                     <span class="badge text-bg-light">v1</span>
                 </header>
@@ -82,7 +120,15 @@
                         <h3 class="h6 mb-1">Salt &amp; KDF</h3>
                         <div class="small">
                             <div><strong>Salt formula:</strong> <code>{saltFormula}</code></div>
-                            <div><strong>Delimiter:</strong> <code>{SALT_DELIM}</code></div>
+                            <div>
+                                <strong>Delimiter (DELIM):</strong>
+                                {#if delimInfo.printable}
+                                    <code>{delimInfo.text}</code> <span class="text-muted">(printable)</span>
+                                {:else}
+                                    <span class="text-muted">(non-printable)</span>
+                                    <code class="ms-1">{delimInfo.text}</code>
+                                {/if}
+                            </div>
                             <div><strong>KDF profile:</strong> <span class="badge text-bg-light">{kdfProfile}</span></div>
                         </div>
                     </div>
