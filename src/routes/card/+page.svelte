@@ -137,7 +137,26 @@
                     <div class="col-12">
                         <h3 class="h6 mb-1">Output rules (deterministic)</h3>
                         <div class="mb-0 small">
-                            Length: <strong>{s.length}</strong> characters. Includes: <strong>≥ 1 uppercase</strong>, <strong>≥ 1 digit</strong> (no 3+ digits in a row) and <strong>{symbolNote}</strong>. All placements are derived from the hash (no randomness). Same inputs = same password.
+                            Length: <strong>{s.length}</strong> characters. Includes: <strong>≥ 1 uppercase</strong>, <strong>≥ 1 digit</strong> (no 3+ digits in a row) and <strong>{symbolNote}</strong>.
+                        </div>
+
+                        <!-- brief "how it works" summary -->
+                        <div class="small text-muted">
+                            <strong>Deterministic placement (summary)</strong>:
+                            <ol class="mb-0 mt-1 ps-3">
+                                <li><em>Base</em> = <code>base64url(hash)</code>, then cut/pad to length <code>L</code>.</li>
+                                <li>Ensure classes:
+                                    <ul class="mb-0 ps-3">
+                                        <li>Pick index <code>i = H[k] mod L</code> (skip forward until a free slot);</li>
+                                        <li>Uppercase: if <code>a–z</code> at <code>i</code> → uppercase it; else set <code>'A' + (H[k+1] mod 26)</code>.</li>
+                                        <li>Digit: set <code>'0' + (H[k+2] mod 10)</code> at its index.</li>
+                                        <li>Symbol (if enabled): set <code>symbols[ H[k+3] mod |symbols| ]</code> at its index.</li>
+                                    </ul>
+                                </li>
+                                <li>Scan left→right; if a run of digits exceeds 2, replace that position with
+                                    <code>'a' + (H[k+i] mod 26)</code> and uppercase it if <code>H[k+i+1]&1</code>.</li>
+                            </ol>
+                            (All choices come from hash bytes <code>H</code>; no RNG. Same inputs = same password.)
                         </div>
                     </div>
 
@@ -175,10 +194,8 @@
 </main>
 
 <style>
-    /* Screen preview sizing (approx A5 width on screen) */
-    .print-area {
-        max-width: 560px; /* A5 ≈ 148mm = 5.83in ≈ 560px @96dpi */
-    }
+    /* Screen preview (approx A4 width @96dpi) */
+    .print-area { max-width: 794px; } /* 210mm ≈ 8.27in ≈ 794px */
 
     .algo-card {
         border-radius: .75rem;
@@ -196,9 +213,6 @@
     .pb-cols {
         column-count: 2; /* force 2 columns */
         column-gap: 1rem;
-        /* if auto-fit instead, use:
-           column-width: 220px;   // browser decides 1 or 2 columns based on width
-        */
     }
     .pb-cols li {
         break-inside: avoid; /* avoid splitting an item */
@@ -218,15 +232,29 @@
             print-color-adjust: exact;
         }
         .no-print { display: none !important; }
-        body { background: #fff !important; }
-        @page { size: A5 portrait; margin: 0; }
+        body { background: #fff !important; margin: 0 !important; }
+        /* Exact-fit A4 page, no external margins (we use internal padding) */
+        @page { size: A4 portrait; margin: 10mm; }
+
+        /* 🔧 Reset Bootstrap layout spacing on print */
+        .container {
+            max-width: none !important;
+            width: 100% !important;
+            margin-top: 10mm !important;
+        }
 
         /* Expand the print area to fill the page nicely */
-        .print-area { max-width: none !important; }
+        .print-area {
+            width: 210mm;
+            margin: 0 auto !important;
+        }
         .algo-card {
-          box-shadow: none !important;
-          border: 1px solid rgba(0,0,0,.12);
-          break-inside: avoid;
+            width: 200mm;
+            padding: 5mm;
+            box-sizing: border-box;
+            box-shadow: none !important;
+            border: 1px solid rgba(0,0,0,.12);
+            break-inside: avoid;
         }
 
         .pb-cols { column-count: 2; column-gap: 6mm; }
