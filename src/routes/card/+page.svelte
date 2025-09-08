@@ -79,13 +79,13 @@
     <div class="d-flex align-items-center justify-content-between gap-2 no-print">
         <h1 class="h4 mb-0">Algorithm Card</h1>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary" href="#/generate">← Back</a>
+            <a class="btn btn-outline-secondary" href="#/">← Back</a>
             <button class="btn btn-primary" on:click={printCard}>Print / Save PDF</button>
         </div>
     </div>
 
     <p class="text-muted no-print mt-3">
-        This page creates a printable reference card with the exact rules this generator uses.
+        This page creates a printable reference card with the exact rules this <a href="https://en.wikipedia.org/wiki/Argon2" target="_blank">Argon2id</a>-based generator uses.
         <strong>No secrets are shown or stored.</strong> Use your browser's "Save as PDF" to export.
     </p>
 

@@ -178,8 +178,8 @@
 
         <span id="tip-kdf" role="tooltip" class="pb-tip">
             <strong>Config ID</strong>: easily to confirm at a glance that 2 devices use identical settings (and thus derive identical passwords).<br/>
-            <strong>KDF</strong> = Key Derivation Function. <strong>Argon2id</strong> is the best algorithm for this.<br/>
-            <strong>m</strong>=memory in MiB, <strong>t</strong>=passes/iterations, <strong>p</strong>=parallelism, <strong>h</strong>=hash bytes.
+            <strong>KDF</strong> = Key Derivation Function. <strong>Argon2id</strong> = best algorithm for that.<br/>
+            <strong>m</strong>=memory in MiB, <strong>t</strong>=iterations, <strong>p</strong>=parallelism, <strong>h</strong>=hash bytes.
         </span>
     </div>
 
@@ -302,48 +302,13 @@
                     </div>
                 </div>
 
-                <!-- Changed-label hint on its own row to keep columns aligned -->
-<!--
-
-                <div class="col-12">
-                    {#if label && labelChanges.length > 0}
-                        <div class="alert alert-warning mb-0">
-                            <div class="fw-semibold">
-                                Changed label to:
-                                <span class="text-bg-danger fw-bold px-2 pb-1">{normalizedLabel || 'default'}</span> (check <a href="#/help">help</a> to see why)
-                            </div>
-                            <ul class="list-unstyled mb-2 mt-2">
-                                {#each labelChanges as ch}
-                                    <li class="d-flex align-items-center gap-2">
-                                        <span class="fw-semibold">{ch.title}</span>
-                                        <span class="text-muted">— {ch.detail}</span>
-                                        <button
-                                                type="button"
-                                                class="btn btn-sm btn-outline-dark"
-                                                on:click={() => undoChange(ch.key)}
-                                                title="Undo this change"
-                                        >
-                                            ⟲ undo
-                                        </button>
-                                    </li>
-                                {/each}
-                            </ul>
-                        </div>
-                    {:else if label}
-                        <div class="form-text">
-                            Using label as entered: <span class="text-bg-secondary fw-bold px-2 pb-1">{label}</span>
-                        </div>
-                    {/if}
-                </div>
-
--->
             </div>
 
             <!-- Actions -->
             <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
                 {#if !hasMaster}
                     <div class="w-100 alert alert-warning">
-                    No master passphrase set. <br>
+                        No master passphrase set. <br>
                         Enter passphrase on the <a href="#/">home page</a>.
                     </div>
                 {:else}

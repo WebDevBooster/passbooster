@@ -45,7 +45,7 @@
                 <div class="card shadow-sm mb-3">
                     <div class="card-body text-center">
                         <h1 class="mb-1"><img src="{favicon}" height="48" alt="PassBooster logo"> PassBooster</h1>
-                        <p class="lead text-muted mb-4">Offline, deterministic password generator (Argon2id).</p>
+                        <p class="lead text-muted mb-4">Offline, deterministic password generator (with <a href="https://en.wikipedia.org/wiki/Argon2" target="_blank">Argon2id</a>).</p>
 
                         <!-- Master passphrase -->
                         <form class="mx-auto" style="max-width: 520px" on:submit|preventDefault={enterVault}>

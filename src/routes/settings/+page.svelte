@@ -103,7 +103,12 @@
 </svelte:head>
 
 <main class="container py-4">
-    <h1 class="h3 mb-3">Settings</h1>
+    <div class="d-flex align-items-center justify-content-between gap-2">
+        <h1 class="h3 mb-0">Settings</h1>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" href="#/">← Back to Home</a>
+        </div>
+    </div>
 
     {#if s.settingsLocked}
         <!-- Big warning gate -->
@@ -200,7 +205,7 @@
                         <span id="tip-symbols" role="tooltip" class="pb-tip">
                         Some websites force you to have at least 1 special character/symbol in your password. But some are fussy about which symbols you can and cannot use.
                         <br/>
-                        That's why by default the symbol set is deliberately limited to just one symbol. <strong>@</strong> is a symbol that all websites should allow.
+                        That's why by default the symbol set is deliberately limited to just one symbol. <strong>@</strong> is a symbol all sites should allow.
                         <br/>
                         But you could have your own symbol set (not recommended). Or remove all symbols (again, not recommended).
                         </span>
@@ -227,6 +232,9 @@
             <div class="card-body">
                 <h2 class="h5">Argon2id</h2>
                 <div class="row g-3">
+                    <div class="col-12">
+                        <a href="https://en.wikipedia.org/wiki/Argon2" target="_blank">Info about Argon2id on Wikipedia</a>
+                    </div>
                     <div class="col-6 col-md-3">
                         <label class="form-label">Passes (iterations)</label>
                         <input
