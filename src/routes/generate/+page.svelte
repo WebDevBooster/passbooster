@@ -6,6 +6,7 @@
     import {normalizeLabelDetailed, normalizeVersion} from '$lib/normalize.js';
     import {settings} from '$lib/stores.js';
     import {getMaster, clearMaster} from '$lib/sessionMaster.js';
+    import { SALT_DELIM } from '$lib/derive.js';
 
     // reactive settings
     $: s = $settings;
@@ -132,6 +133,11 @@
         refreshHasMaster();   // immediately hide the button and show the banner
         output = '';          // clear any derived output in UI
     }
+
+    // Config ID for confirming at a glance that 2 devices use identical settings
+    let cfgId = '';
+    $: cfgStr = JSON.stringify({kdf:[s.memoryMiB,s.passes,s.parallelism,s.hashBytes], len:s.length, sym:s.symbols, delim:SALT_DELIM, steps:Object.entries(s.labelSteps||{}).filter(([,v])=>v).map(([k])=>k)});
+    $: crypto.subtle.digest('SHA-256', new TextEncoder().encode(cfgStr)).then(b => cfgId = Array.from(new Uint8Array(b)).slice(0,6).map(x => x.toString(16).padStart(2,'0')).join(''));
 </script>
 
 <svelte:head>
@@ -155,11 +161,12 @@
 
     <!-- KDF profile reminder -->
     <div class="text-muted mb-3 position-relative d-inline-flex align-items-center gap-1">
-        KDF profile: <span class="badge text-bg-light">{kdfProfile}</span>
+        Config ID: <code class="text-reset fw-bold">{cfgId || '—'}</code> —
+        KDF profile: <code class="text-reset fw-bold">{kdfProfile}</code>
         <button
                 type="button"
                 class="btn btn-link p-0 ms-1 pb-tip-trigger"
-                aria-label="What is the KDF profile?"
+                aria-label="What is the Config ID and KDF profile?"
                 aria-describedby="tip-kdf"
         >
             <!-- info icon -->
@@ -170,9 +177,9 @@
         </button>
 
         <span id="tip-kdf" role="tooltip" class="pb-tip">
+            <strong>Config ID</strong>: easily to confirm at a glance that 2 devices use identical settings (and thus derive identical passwords).<br/>
             <strong>KDF</strong> = Key Derivation Function. <strong>Argon2id</strong> is the best algorithm for this.<br/>
-            <strong>m</strong>=memory in MiB, <strong>t</strong>=passes/iterations, <strong>p</strong>=parallelism, <strong>h</strong>=hash bytes.<br/>
-            Keep these identical across devices. Changing them changes all derived passwords.
+            <strong>m</strong>=memory in MiB, <strong>t</strong>=passes/iterations, <strong>p</strong>=parallelism, <strong>h</strong>=hash bytes.
         </span>
     </div>
 
@@ -198,11 +205,11 @@
                     </button>
 
                     <span id="tip-domain" role="tooltip" class="pb-tip">
-                        <strong>Domain</strong> (eTLD+1) + optional username/label + version will be combined into one salt value for the Key Derivation Function.
+                        <strong>Domain</strong> (eTLD+1) + optional username/label + version = <strong>salt</strong> value for KDF (Key Derivation Function).
                         <br/>
-                        This is what allows to derive any number of <strong>strong passwords</strong> from ONE master passphrase.
+                        That salt + your master passphrase = <strong>strong password</strong>.
                         <br/>
-                        But this also means that all inputs in these fields should be <strong>lowercase</strong>. Because just one uppercase character will change the salt and therefore completely change the derived output.
+                        This also means: <strong>inputs in these fields should be lowercase</strong>. Because just one uppercase character will change the salt and therefore change output.
                     </span>
                 </span>
 <!--                <label class="form-label">Domain or URL</label>-->
