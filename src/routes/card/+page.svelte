@@ -1,7 +1,6 @@
 <script>
     import { settings } from '$lib/stores.js';
     import { SALT_DELIM } from '$lib/derive.js';
-    import { onMount } from 'svelte';
 
     // live settings
     $: s = $settings;
@@ -65,9 +64,10 @@
         window.print();
     }
 
-    onMount(() => {
-        // nothing required; reserved for adding dynamic sizing controls
-    });
+    // Config ID for confirming at a glance that 2 devices use identical settings
+    let cfgId = '';
+    $: cfgStr = JSON.stringify({kdf:[s.memoryMiB,s.passes,s.parallelism,s.hashBytes], len:s.length, sym:s.symbols, delim:SALT_DELIM, steps:Object.entries(s.labelSteps||{}).filter(([,v])=>v).map(([k])=>k)});
+    $: crypto.subtle.digest('SHA-256', new TextEncoder().encode(cfgStr)).then(b => cfgId = Array.from(new Uint8Array(b)).slice(0,6).map(x => x.toString(16).padStart(2,'0')).join(''));
 </script>
 
 <svelte:head>
@@ -85,8 +85,8 @@
     </div>
 
     <p class="text-muted no-print mt-3">
-        This page creates a printable reference card with the exact rules your generator uses.
-        <strong>No secrets are shown or stored.</strong> Use your browser’s “Save as PDF” to export.
+        This page creates a printable reference card with the exact rules this generator uses.
+        <strong>No secrets are shown or stored.</strong> Use your browser's "Save as PDF" to export.
     </p>
 
     <!-- Screen preview (what will print) -->
@@ -98,7 +98,7 @@
                         <h2 class="h5 mb-0">PassBooster — Algorithm</h2>
                         <small class="text-muted">Reference card (keep separate from master passphrase)</small>
                     </div>
-                    <span class="badge text-bg-light">v1</span>
+                    <span class="badge text-bg-light">Card rev 1</span>
                 </header>
 
                 <hr class="my-3" />
@@ -129,7 +129,8 @@
                                     <code class="ms-1">{delimInfo.text}</code>
                                 {/if}
                             </div>
-                            <div><strong>KDF profile:</strong> <code class="fw-bold">{kdfProfile}</code></div>
+                            <div><strong>Key Derivation Function profile:</strong> <code class="fw-bold">{kdfProfile}</code></div>
+                            <div><strong>Config ID:</strong> <code>{cfgId || '—'}</code></div>
                         </div>
                     </div>
 
@@ -140,23 +141,77 @@
                             Length: <strong>{s.length}</strong> characters. Includes: <strong>≥ 1 uppercase</strong>, <strong>≥ 1 digit</strong> (no 3+ digits in a row) and <strong>{symbolNote}</strong>.
                         </div>
 
-                        <!-- brief "how it works" summary -->
+                        <!-- Deterministic placement (full summary) -->
                         <div class="small text-muted">
-                            <strong>Deterministic placement (summary)</strong>:
-                            <ol class="mb-0 mt-1 ps-3">
-                                <li><em>Base</em> = <code>base64url(hash)</code>, then cut/pad to length <code>L</code>.</li>
-                                <li>Ensure classes:
+                            <strong>Deterministic placement (how it works)</strong>
+
+                            <!-- Legend / definitions -->
+                            <div class="mt-1">
+                                <em>Legend:</em>
+                                <code>H</code> = Argon2id hash bytes,
+                                <code>L</code> = target length,
+                                <code>S</code> = symbol set string,
+                                <code>|X|</code> = length of <code>X</code>.
+                                <br />
+                                <code>idx(seed)</code> = first unused index from the sequence
+                                <code>j<sub>k</sub> = ( H[(seed + k) mod |H|] + k ) mod L</code> for <code>k = 0,1,2…</code>.
+                            </div>
+
+                            <!-- Procedure -->
+                            <ol class="mb-0 mt-2 ps-3">
+                                <li>
+                                    <strong>Base string.</strong>
+                                    Compute <code>base = base64url(H)</code>. Form an array <code>chars</code> of length <code>L</code> by
+                                    taking the first <code>L</code> characters of <code>base</code>; if <code>base</code> is shorter, repeat from its
+                                    start deterministically until length <code>L</code> is reached.
+                                </li>
+
+                                <li class="mt-1">
+                                    <strong>Reserve set.</strong> Start with an empty set <code>R</code> of “reserved” positions. Each time a rule
+                                    chooses an index <code>i</code>, write the new character and add <code>i</code> to <code>R</code>. Subsequent rules
+                                    skip indices in <code>R</code>.
+                                </li>
+
+                                <li class="mt-1">
+                                    <strong>Ensure character classes (order matters):</strong>
                                     <ul class="mb-0 ps-3">
-                                        <li>Pick index <code>i = H[k] mod L</code> (skip forward until a free slot);</li>
-                                        <li>Uppercase: if <code>a–z</code> at <code>i</code> → uppercase it; else set <code>'A' + (H[k+1] mod 26)</code>.</li>
-                                        <li>Digit: set <code>'0' + (H[k+2] mod 10)</code> at its index.</li>
-                                        <li>Symbol (if enabled): set <code>symbols[ H[k+3] mod |symbols| ]</code> at its index.</li>
+                                        <li>
+                                            <em>Uppercase.</em> Let <code>i = idx(1)</code>.
+                                            If <code>chars[i]</code> is <code>a–z</code>, uppercase it; otherwise set
+                                            <code>chars[i] = 'A' + (H[2] mod 26)</code>. Add <code>i</code> to <code>R</code>.
+                                        </li>
+                                        <li>
+                                            <em>Digit.</em> Let <code>i = idx(3)</code>.
+                                            Set <code>chars[i] = '0' + (H[4] mod 10)</code>. Add <code>i</code> to <code>R</code>.
+                                        </li>
+                                        <li>
+                                            <em>Symbol (if <code>|S| &gt; 0</code>).</em> Let <code>i = idx(5)</code>.
+                                            Set <code>chars[i] = S[ H[6] mod |S| ]</code>. Add <code>i</code> to <code>R</code>.
+                                        </li>
                                     </ul>
                                 </li>
-                                <li>Scan left→right; if a run of digits exceeds 2, replace that position with
-                                    <code>'a' + (H[k+i] mod 26)</code> and uppercase it if <code>H[k+i+1]&1</code>.</li>
+
+                                <li class="mt-1">
+                                    <strong>Limit digit runs.</strong>
+                                    Scan left→right. Track the length of the current digit run.
+                                    Whenever adding the current character would make a run of <em>3</em> digits,
+                                    overwrite that position with
+                                    <code>c = 'a' + (H[7 + i] mod 26)</code> and uppercase it if <code>(H[8 + i] &amp; 1) = 1</code>.
+                                    Reset the run counter.
+                                </li>
+
+                                <li class="mt-1">
+                                    <strong>Output.</strong> Join <code>chars</code> to a string of exact length <code>L</code>.
+                                </li>
                             </ol>
-                            (All choices come from hash bytes <code>H</code>; no RNG. Same inputs = same password.)
+
+                            <!-- Properties / invariants -->
+                            <div class="mt-2">
+                                <em>Properties:</em>
+                                same inputs ⇒ same indices and characters (no RNG); at least one uppercase; at least one digit with no 3+ consecutive digits; at least one symbol if <code>|S|&gt;0</code>.
+                                Changing any of <em>Domain</em>, <em>Label</em> (after normalization), <em>Version</em>, <em>KDF profile</em>,
+                                <em>Length</em>, or <em>Symbol set (including order)</em> produces a different password.
+                            </div>
                         </div>
                     </div>
 
@@ -178,9 +233,8 @@
                     <div class="col-12">
                         <h3 class="h6 mb-1">Notes</h3>
                         <ul class="mb-0 small">
-                            <li><strong>Do not</strong> write your master passphrase on this card.</li>
-                            <li>Keep <strong>Symbols</strong>, <strong>Length</strong> and <strong>KDF</strong> identical across devices. Changing any of these changes all passwords.</li>
-                            <li>If a site rejects certain symbols, adjust symbols &amp; bump version (e.g. <code>v2</code>).</li>
+                            <li>Keep <strong>Symbols</strong>, <strong>Length</strong> + <strong>KDF</strong> identical across devices. Changing any of these changes all passwords.</li>
+                            <li><strong>Config ID</strong> makes it easy to confirm at a glance that 2 devices use identical settings.</li>
                         </ul>
                     </div>
                 </div>
@@ -189,7 +243,7 @@
     </section>
 
     <div class="text-center mt-3 no-print">
-        <small class="text-muted">Tip: choose “Save as PDF” in the print dialog.</small>
+        <small class="text-muted">Tip: choose "Save as PDF" in the print dialog.</small>
     </div>
 </main>
 
@@ -240,7 +294,7 @@
         .container {
             max-width: none !important;
             width: 100% !important;
-            margin-top: 10mm !important;
+            margin-top: 0 !important;
         }
 
         /* Expand the print area to fill the page nicely */
