@@ -41,7 +41,7 @@
 <section class="min-vh-100 d-flex align-items-center justify-content-center">
     <main class="container py-4">
         <div class="row">
-            <div class="col-12">
+            <div class="col-md-10 offset-md-1 col-lg-8 offset-lg-2">
                 <div class="card shadow-sm mb-3">
                     <div class="card-body text-center">
                         <h1 class="mb-1"><img src="{favicon}" height="48" alt="PassBooster logo"> PassBooster</h1>

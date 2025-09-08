@@ -145,52 +145,56 @@
 </svelte:head>
 
 <main class="container py-4">
-    <div class="d-flex align-items-center gap-2 mb-1">
-        <h1 class="h3 mb-0">Generate</h1>
-        {#if hasMaster}
-            <button
-                    class="btn btn-outline-secondary btn-sm ms-auto"
-                    type="button"
-                    on:click={onForgetMaster}
-                    title="Remove the in-memory passphrase for this tab"
-            >
-                Forget master passphrase
-            </button>
-        {/if}
-    </div>
+    <div class="row">
+        <div class="col-sm-12 offset-sm-0 col-md-10 offset-md-1 col-lg-8 offset-lg-2">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="h3 mb-0">Generate</h1>
+                {#if hasMaster}
+                    <button
+                            class="btn btn-outline-secondary btn-sm ms-auto"
+                            type="button"
+                            on:click={onForgetMaster}
+                            title="Remove the in-memory passphrase for this tab"
+                    >
+                        Forget master passphrase
+                    </button>
+                {/if}
+            </div>
 
-    <!-- KDF profile reminder -->
-    <div class="text-muted mb-3 position-relative d-inline-flex align-items-center gap-1">
-        Config ID: <code class="text-reset fw-bold">{cfgId || '—'}</code> —
-        KDF profile: <code class="text-reset fw-bold">{kdfProfile}</code>
-        <button
-                type="button"
-                class="btn btn-link p-0 ms-1 pb-tip-trigger"
-                aria-label="What is the Config ID and KDF profile?"
-                aria-describedby="tip-kdf"
-        >
-            <!-- info icon -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="fill: var(--bs-primary);" class="bi bi-info-circle" viewBox="0 0 16 16">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-            </svg>
-        </button>
+            <!-- KDF profile reminder -->
+            <div class="text-muted mb-3 position-relative">
+                Config ID: <code class="text-reset fw-bold">{cfgId || '—'}</code>
+                <br class="d-md-none"><span class="d-none d-md-inline">—</span>
+                KDF profile: <code class="text-reset fw-bold">{kdfProfile}</code>
+                <button
+                        type="button"
+                        class="btn btn-link p-0 ms-1 pb-tip-trigger"
+                        aria-label="What is the Config ID and KDF profile?"
+                        aria-describedby="tip-kdf"
+                >
+                    <!-- info icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="fill: var(--bs-primary);" class="bi bi-info-circle" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                    </svg>
+                </button>
 
-        <span id="tip-kdf" role="tooltip" class="pb-tip">
+                <span id="tip-kdf" role="tooltip" class="pb-tip">
             <strong>Config ID</strong>: easily to confirm at a glance that 2 devices use identical settings (and thus derive identical passwords).<br/>
             <strong>KDF</strong> = Key Derivation Function. <strong>Argon2id</strong> = best algorithm for that.<br/>
             <strong>m</strong>=memory in MiB, <strong>t</strong>=iterations, <strong>p</strong>=parallelism, <strong>h</strong>=hash bytes.
         </span>
-    </div>
+            </div>
 
-    <!-- Form card -->
-    <div class="card shadow-sm mb-3">
-        <div class="card-body">
-            <form on:submit|preventDefault={onDerive}>
-            <!-- Domain -->
-            <div class="input-group">
-                <span class="input-group-text">Domain or URL:</span>
-                <span class="input-group-text">
+            <!-- Form card -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <form on:submit|preventDefault={onDerive}>
+                        <!-- Domain -->
+                        <div class="input-group">
+                            <span class="input-group-text d-md-none">Domain:</span>
+                            <span class="input-group-text d-none d-md-inline">Domain or URL:</span>
+                            <span class="input-group-text">
                     <button
                             type="button"
                             class="btn btn-link p-0 pb-tip-trigger"
@@ -212,142 +216,145 @@
                         This also means: <strong>inputs in these fields should be lowercase</strong>. Because just one uppercase character will change the salt and therefore change output.
                     </span>
                 </span>
-<!--                <label class="form-label">Domain or URL</label>-->
-                <input
-                        class="form-control"
-                        placeholder="example.com or https://sub.example.co.uk/login"
-                        bind:this={domainEl}
-                        bind:value={domainInput}
-                        on:input={onDomainInput}
-                        on:blur={doNormalizeDomain}
-                        autofocus
-                />
-            </div>
-            {#if normalizedDomain}
-                <div class="form-text">
-                    Will use domain: <span class="text-bg-primary px-2 pb-1">{normalizedDomain}</span>
-                </div>
-            {/if}
-
-            <!-- Label + Version (aligned) -->
-            <div class="row mt-2 g-3">
-                <div class="col-12 col-md-9">
-                    <label class="form-label">Account username, email or label (optional)</label>
-                    <input
-                            class="form-control"
-                            placeholder="personal, work, admin…"
-                            bind:value={label}
-                            on:input={previewNormalization}
-                    />
-                    <!-- Label hint and warning -->
-                    {#if label && labelChanges.length > 0}
-                        <div class="alert alert-warning mb-0 mt-1">
-                            <div class="fw-semibold">
-                                Changed label to:
-                                <span class="text-bg-danger fw-bold px-2 pb-1">{normalizedLabel || 'default'}</span>
-                                <br>(check <a href="#/help">help</a> to see why)
+                            <!--                <label class="form-label">Domain or URL</label>-->
+                            <input
+                                    class="form-control"
+                                    placeholder="example.com or https://sub.example.co.uk/login"
+                                    bind:this={domainEl}
+                                    bind:value={domainInput}
+                                    on:input={onDomainInput}
+                                    on:blur={doNormalizeDomain}
+                                    autofocus
+                            />
+                        </div>
+                        {#if normalizedDomain}
+                            <div class="form-text">
+                                Will use domain: <span class="text-bg-primary px-2 pb-1">{normalizedDomain}</span>
                             </div>
-                            <ul class="list-unstyled mb-2 mt-2">
-                                {#each labelChanges as ch}
-                                    <li class="d-flex align-items-center gap-1">
-                                        <span class="fw-semibold">{ch.title}:</span>
-                                        <span class="text-muted">{ch.detail}</span>
-                                        <button
-                                                type="button"
-                                                class="btn btn-sm btn-outline-dark"
-                                                on:click={() => undoChange(ch.key)}
-                                                title="Undo this change"
-                                        >
-                                            ⟲ undo
-                                        </button>
-                                    </li>
-                                {/each}
-                            </ul>
-                        </div>
-                    {:else if label}
-                        <div class="form-text">
-                            Using label as entered: <span class="text-bg-primary px-2 pb-1">{label}</span>
-                        </div>
-                    {/if}
-                </div>
+                        {/if}
 
-                <div class="col-12 col-md-3">
-                    <label class="form-label position-relative d-inline-flex align-items-center gap-1">
-                        Version
-                        <button
-                                type="button"
-                                class="btn btn-link p-0 ms-1 pb-tip-trigger"
-                                aria-label="What is version?"
-                                aria-describedby="tip-version"
-                        >
-                            <!-- tiny info icon -->
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="fill: var(--bs-primary);" class="bi bi-info-circle" viewBox="0 0 16 16">
-                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-                            </svg>
-                        </button>
+                        <!-- Label + Version (aligned) -->
+                        <div class="row mt-2 g-3">
+                            <div class="col-12 col-md-9">
+                                <label class="form-label">Account username, email or label (optional)</label>
+                                <input
+                                        class="form-control"
+                                        placeholder="personal, work, admin…"
+                                        bind:value={label}
+                                        on:input={previewNormalization}
+                                />
+                                <!-- Label hint and warning -->
+                                {#if label && labelChanges.length > 0}
+                                    <div class="alert alert-warning mb-0 mt-1">
+                                        <div class="fw-semibold">
+                                            Changed label to:
+                                            <span class="text-bg-danger fw-bold px-2 pb-1">{normalizedLabel || 'default'}</span>
+                                            <br>(check <a href="#/help">help</a> to see why)
+                                        </div>
+                                        <ul class="list-unstyled mb-2 mt-2">
+                                            {#each labelChanges as ch}
+                                                <li class="d-flex align-items-center gap-1">
+                                                    <span class="fw-semibold">{ch.title}:</span>
+                                                    <span class="text-muted">{ch.detail}</span>
+                                                    <button
+                                                            type="button"
+                                                            class="btn btn-sm btn-outline-dark"
+                                                            on:click={() => undoChange(ch.key)}
+                                                            title="Undo this change"
+                                                    >
+                                                        ⟲ undo
+                                                    </button>
+                                                </li>
+                                            {/each}
+                                        </ul>
+                                    </div>
+                                {:else if label}
+                                    <div class="form-text">
+                                        Using label as entered: <span class="text-bg-primary px-2 pb-1">{label}</span>
+                                    </div>
+                                {/if}
+                            </div>
 
-                        <span id="tip-version" role="tooltip" class="pb-tip">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label position-relative d-inline-flex align-items-center gap-1">
+                                    Version
+                                    <button
+                                            type="button"
+                                            class="btn btn-link p-0 ms-1 pb-tip-trigger"
+                                            aria-label="What is version?"
+                                            aria-describedby="tip-version"
+                                    >
+                                        <!-- tiny info icon -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" style="fill: var(--bs-primary);" class="bi bi-info-circle" viewBox="0 0 16 16">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                                        </svg>
+                                    </button>
+
+                                    <span id="tip-version" role="tooltip" class="pb-tip">
                             Use <strong>Version</strong> (e.g. v1, v2) to rotate/change the password for this account (when needed). It is part of the salt. So, changing it yields a different password even with the same domain/label.
                         </span>
-                    </label>
-                    <input
-                            class="form-control text-center"
-                            placeholder="v1"
-                            bind:value={version}
-                            on:input={previewNormalization}
-                    />
-                    <div class="form-text text-end">
-                        Will use: <span class="text-bg-primary px-2 pb-1">{normalizedVersion}</span>
+                                </label>
+                                <input
+                                        class="form-control text-center"
+                                        placeholder="v1"
+                                        bind:value={version}
+                                        on:input={previewNormalization}
+                                />
+                                <div class="form-text text-end">
+                                    Will use: <span class="text-bg-primary px-2 pb-1">{normalizedVersion}</span>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                            {#if !hasMaster}
+                                <div class="w-100 alert alert-warning">
+                                    No master passphrase set. <br>
+                                    Enter passphrase on the <a href="#/">home page</a>.
+                                </div>
+                            {:else}
+                                <button
+                                        class="btn btn-primary"
+                                        type="submit"
+                                        on:click={onDerive}
+                                        disabled={!hasMaster || !domainInput || deriving}
+                                >
+                                    Derive password from input
+                                </button>
+                            {/if}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {#if hasMaster}
+                <!-- Output card -->
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        {#key deriving} <!-- forces re-render so glow restarts each time -->
+                            <div class={"input-group " + (deriving && !output ? "placeholder-glow" : "")}>
+                                <span class={"input-group-text d-sm-none " + (deriving && !output ? "placeholder col-2" : "")}>🔑</span>
+                                <span class={"input-group-text d-none d-sm-inline " + (deriving && !output ? "placeholder col-3" : "")}>Derived password:</span>
+                                <input
+                                        class={"form-control font-monospace " + (deriving && !output ? "placeholder bg-primary" : "")}
+                                        readonly
+                                        value={output}
+                                        placeholder="derive to see output"
+                                />
+                                <button class="btn btn-outline-secondary" type="button" on:click={copyOut} disabled={!output}>
+                                    Copy
+                                </button>
+                            </div>
+                        {/key}
+                        <small class="bg-success text-light d-block mt-1 text-center">{copyMsg}</small>
                     </div>
                 </div>
-
-            </div>
-
-            <!-- Actions -->
-            <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-                {#if !hasMaster}
-                    <div class="w-100 alert alert-warning">
-                        No master passphrase set. <br>
-                        Enter passphrase on the <a href="#/">home page</a>.
-                    </div>
-                {:else}
-                    <button
-                            class="btn btn-primary"
-                            type="submit"
-                            on:click={onDerive}
-                            disabled={!hasMaster || !domainInput || deriving}
-                    >
-                        Derive password from the input above
-                    </button>
-                {/if}
-            </div>
-            </form>
+            {/if}
         </div>
     </div>
-
-    {#if hasMaster}
-    <!-- Output card -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            {#key deriving} <!-- forces re-render so glow restarts each time -->
-            <div class={"input-group " + (deriving && !output ? "placeholder-glow" : "")}>
-                <span class={"input-group-text " + (deriving && !output ? "placeholder col-3" : "")}>Derived password:</span>
-                <input
-                        class={"form-control font-monospace " + (deriving && !output ? "placeholder bg-primary" : "")}
-                        readonly
-                        value={output}
-                        placeholder="(derive to see output)"
-                />
-                <button class="btn btn-outline-secondary" type="button" on:click={copyOut} disabled={!output}>
-                    Copy
-                </button>
-            </div>
-            {/key}
-            <small class="bg-success text-light d-block mt-1 text-center">{copyMsg}</small>
-        </div>
-    </div>
-    {/if}
 
     <div class="row">
         <div class="col-12 mt-2 text-center">
