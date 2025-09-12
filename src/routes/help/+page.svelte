@@ -37,7 +37,9 @@
                                 <li><strong>Input:</strong> Your master secret + salt are fed to <a href="https://en.wikipedia.org/wiki/Argon2" target="_blank">Argon2id</a>. <br>
                                     Salt is just a combo of eTLD+1 + optional label/username + version.</li>
                                 <li><strong>Auto-clean:</strong> Accidental uppercase characters or spaces etc. in the username/label input are automatically cleaned to prevent any mishaps.</li>
-                                <li><strong>Derive:</strong> Argon2id → base64url → deterministic placements of uppercase characters, numbers and symbols (to make sure every website is happy with your password).</li>
+                                <li><strong>Derive:</strong> Argon2id → base64url → deterministic placements of uppercase characters, numbers and symbols (to make sure every website is happy with your password).<br>
+                                    For improved security, Argon2id is <strong>deliberately slow</strong> with default settings. On a normal laptop, it can take up to a second to derive a password.
+                                </li>
                                 <li><strong>Output:</strong> Strong, site-unique password. Nothing stored.</li>
                             </ul>
                         </div>
