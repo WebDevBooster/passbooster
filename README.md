@@ -1,7 +1,7 @@
 # PassBooster
 
 ### DOWNLOAD
-You can download a compiled ready-to-use HTML file in [releases](https://github.com/WebDevBooster/passbooster/releases/).
+You can download a compiled ready-to-use HTML file in [releases](https://github.com/WebDevBooster/passbooster/releases/) or try it on this [online playground](https://webdevbooster.github.io)
 
 --- 
 
