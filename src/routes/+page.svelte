@@ -83,9 +83,10 @@
         <!-- non-essential buttons in a separate row -->
         <div class="row">
             <div class="col-12 mt-2 text-center">
-                <a class="link-secondary px-2" href="#/help">Why &amp; How</a>
-                <a class="link-secondary px-2" href="#/card">Algo Card</a>
-                <a class="link-secondary px-2" href="#/settings">Settings</a>
+                <a class="link-secondary px-0 px-sm-2" href="#/help">Why &amp; How</a>
+                <a class="link-secondary px-0 px-sm-2" href="#/card">Algo Card</a>
+                <a class="link-secondary px-0 px-sm-2" href="#/settings">Settings</a>
+                <a class="link-secondary px-0 px-sm-2" href="https://github.com/WebDevBooster/passbooster">GitHub</a>
             </div>
         </div>
     </main>
